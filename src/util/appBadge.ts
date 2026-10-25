@@ -2,6 +2,8 @@ import { getGlobal } from '../global';
 
 import { DEBUG } from '../config';
 import { selectTabState } from '../global/selectors';
+import { updateElectronBadge } from '../customization/appBadge';
+import { ELECTRON_BRIDGE } from '../customization/electronBridge';
 import { IS_TAURI } from './browser/globalEnvironment';
 
 export function updateAppBadge(unreadCount: number, isMuted?: boolean) {
@@ -11,6 +13,11 @@ export function updateAppBadge(unreadCount: number, isMuted?: boolean) {
   }
 
   if (!selectTabState(getGlobal()).isMasterTab) return;
+
+  if (ELECTRON_BRIDGE) {
+    updateElectronBadge(ELECTRON_BRIDGE, unreadCount, isMuted);
+    return;
+  }
   if (typeof window.navigator.setAppBadge !== 'function') {
     return;
   }

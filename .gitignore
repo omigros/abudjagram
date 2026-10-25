@@ -15,3 +15,4 @@ dev/perf/screenshot*
 # Abudjagram
 release/
 .npm-*.log
+abudjagram_git/

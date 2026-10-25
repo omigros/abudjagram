@@ -3369,6 +3369,25 @@ export interface LangPair {
   'AbjImport': undefined;
   'AbjImportError': undefined;
   'AbjReset': undefined;
+  'AbjPresets': undefined;
+  'AbjPresetAurora': undefined;
+  'AbjPresetSunset': undefined;
+  'AbjPresetOcean': undefined;
+  'AbjPresetNeon': undefined;
+  'AbjPresetTerminal': undefined;
+  'AbjPresetClassic': undefined;
+  'AbjMessages': undefined;
+  'AbjBubbleRadius': undefined;
+  'AbjBubbleTails': undefined;
+  'AbjFont': undefined;
+  'AbjFontDefault': undefined;
+  'AbjFontSystem': undefined;
+  'AbjFontCustom': undefined;
+  'AbjFontCustomName': undefined;
+  'AbjUiScale': undefined;
+  'AbjApp': undefined;
+  'AbjAutoLaunch': undefined;
+  'AbjAutoLaunchInfo': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

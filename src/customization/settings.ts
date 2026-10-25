@@ -2,6 +2,7 @@ export type BackdropKind = 'telegram' | 'aurora' | 'video' | 'mica' | 'acrylic';
 export type AuroraPalette = 'aurora' | 'sunset' | 'ocean' | 'neon';
 export type AnimationEasing = 'default' | 'smooth' | 'bouncy' | 'snappy';
 export type MessageAppearance = 'default' | 'fade' | 'slide' | 'pop' | 'blur';
+export type FontPreset = 'default' | 'system' | 'inter' | 'manrope' | 'nunito' | 'jetbrains' | 'custom';
 
 export type CustomizationSettings = {
   isGlassEnabled: boolean;
@@ -18,8 +19,16 @@ export type CustomizationSettings = {
   animationSpeed: number;
   animationEasing: AnimationEasing;
   messageAppearance: MessageAppearance;
+  bubbleRadius: number;
+  hasBubbleTails: boolean;
+  fontPreset: FontPreset;
+  customFontFamily?: string;
+  uiScale: number;
   customCss: string;
 };
+
+// Stock bubble radius of `--border-radius-messages`, in px
+export const DEFAULT_BUBBLE_RADIUS = 15;
 
 export const DEFAULT_CUSTOMIZATION: CustomizationSettings = {
   isGlassEnabled: true,
@@ -36,6 +45,11 @@ export const DEFAULT_CUSTOMIZATION: CustomizationSettings = {
   animationSpeed: 1,
   animationEasing: 'default',
   messageAppearance: 'default',
+  bubbleRadius: DEFAULT_BUBBLE_RADIUS,
+  hasBubbleTails: true,
+  fontPreset: 'default',
+  customFontFamily: undefined,
+  uiScale: 100,
   customCss: '',
 };
 

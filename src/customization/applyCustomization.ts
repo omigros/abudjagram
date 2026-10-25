@@ -1,23 +1,20 @@
+import type { ElectronBridge } from './electronBridge';
 import type { BackdropKind, CustomizationSettings } from './settings';
 
 import { requestMutation } from '../lib/fasterdom/fasterdom';
 import { CUSTOMIZATION_IDB_STORE } from '../util/browser/idb';
-import { DEFAULT_CUSTOMIZATION, getCustomization, subscribeToCustomization } from './settings';
+import { ELECTRON_BRIDGE, TITLE_BAR_HEIGHT } from './electronBridge';
+import { resolveFont } from './presets';
+import {
+  DEFAULT_BUBBLE_RADIUS, DEFAULT_CUSTOMIZATION, getCustomization, subscribeToCustomization,
+} from './settings';
 
 import './customization.scss';
 
-type BackgroundMaterial = 'none' | 'mica' | 'acrylic';
-
-type ElectronBridge = {
-  getCapabilities: () => Promise<{ platform: string; canUseBackgroundMaterial: boolean }>;
-  setBackgroundMaterial: (material: BackgroundMaterial) => void;
-  setTheme: (theme: 'dark' | 'light') => void;
-};
-
-export const ELECTRON_BRIDGE = (window as { abudjagram?: ElectronBridge }).abudjagram;
 export const BACKDROP_VIDEO_KEY = 'backdrop-video';
 
 const AURORA_BLOB_COUNT = 4;
+const GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2';
 
 let canUseBackgroundMaterial = false;
 let backdropElement: HTMLDivElement | undefined;
@@ -25,10 +22,17 @@ let videoElement: HTMLVideoElement | undefined;
 let videoObjectUrl: string | undefined;
 let videoSourceKey: string | undefined;
 let customStyleElement: HTMLStyleElement | undefined;
+let fontLinkElement: HTMLLinkElement | undefined;
 
 export function initCustomization() {
   if (ELECTRON_BRIDGE) {
-    document.documentElement.classList.add('is-electron');
+    const root = document.documentElement;
+    root.classList.add('is-electron');
+    if (TITLE_BAR_HEIGHT) {
+      root.classList.add('has-custom-title-bar');
+      root.style.setProperty('--abj-title-bar-height', `${TITLE_BAR_HEIGHT}px`);
+    }
+
     syncNativeTheme(ELECTRON_BRIDGE);
     void ELECTRON_BRIDGE.getCapabilities().then((capabilities) => {
       canUseBackgroundMaterial = capabilities.canUseBackgroundMaterial;
@@ -56,9 +60,19 @@ export function removeBackdropVideo() {
 
 function applyCustomization(settings: CustomizationSettings) {
   const backdrop = resolveBackdrop(settings.backdrop);
+  const font = resolveFont(settings);
   const root = document.documentElement;
 
   requestMutation(() => {
+    root.classList.toggle('abj-bubble-radius', settings.bubbleRadius !== DEFAULT_BUBBLE_RADIUS);
+    root.classList.toggle('abj-no-bubble-tails', !settings.hasBubbleTails);
+    root.classList.toggle('abj-font', Boolean(font));
+    root.classList.toggle('abj-ui-scale', settings.uiScale !== DEFAULT_CUSTOMIZATION.uiScale);
+    root.style.setProperty('--abj-bubble-radius', `${settings.bubbleRadius}px`);
+    root.style.setProperty('--abj-font-family', font?.family || '');
+    root.style.setProperty('--abj-ui-scale', String(settings.uiScale / 100));
+    updateFontStylesheet(font?.googleFamily);
+
     root.classList.toggle('abj-glass', settings.isGlassEnabled);
     root.classList.toggle('abj-glass-highlight', settings.isGlassEnabled && settings.hasGlassHighlight);
     root.classList.toggle('abj-glass-bubbles', settings.isGlassEnabled && Boolean(settings.isGlassBubbles));
@@ -112,7 +126,8 @@ function updateBackdropElement(backdrop: BackdropKind) {
     backdropElement = document.createElement('div');
     backdropElement.className = 'abj-backdrop';
     backdropElement.setAttribute('aria-hidden', 'true');
-    document.body.prepend(backdropElement);
+    // Lives outside `body`, which is offset by the custom title bar, so the backdrop also fills the title bar
+    document.documentElement.prepend(backdropElement);
   }
 
   const kindClassName = `abj-backdrop-${backdrop}`;
@@ -178,6 +193,20 @@ function releaseVideoObjectUrl() {
 
   URL.revokeObjectURL(videoObjectUrl);
   videoObjectUrl = undefined;
+}
+
+function updateFontStylesheet(googleFamily?: string) {
+  const href = googleFamily ? `${GOOGLE_FONTS_URL}?family=${googleFamily}&display=swap` : undefined;
+  if (fontLinkElement?.getAttribute('href') === href) return;
+
+  fontLinkElement?.remove();
+  fontLinkElement = undefined;
+  if (!href) return;
+
+  fontLinkElement = document.createElement('link');
+  fontLinkElement.rel = 'stylesheet';
+  fontLinkElement.href = href;
+  document.head.append(fontLinkElement);
 }
 
 function updateCustomCss(css: string) {

@@ -302,3 +302,90 @@ html[data-abj-appearance="blur"] .MessageList .Message:not(.open) {
   transform: scale(0.95);
   filter: blur(0.5rem);
 }
+
+// Custom title bar of the desktop app. `html` reserves the strip, `body` becomes the containing block
+// of fixed layers, so modals and the media viewer start below the window controls.
+
+html.has-custom-title-bar {
+  --abj-title-bar-background: var(--color-background-secondary);
+
+  box-sizing: border-box;
+  padding-top: var(--abj-title-bar-height);
+  background-color: var(--abj-title-bar-background) !important;
+
+  -webkit-app-region: drag;
+
+  &::before {
+    pointer-events: none;
+    content: "Abudjagram";
+
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    left: 0;
+
+    padding-inline: 1rem;
+
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-medium);
+    line-height: var(--abj-title-bar-height);
+    color: var(--color-text-secondary);
+    letter-spacing: 0.02em;
+  }
+
+  body {
+    transform: translateZ(0);
+    height: 100%;
+
+    -webkit-app-region: no-drag;
+  }
+}
+
+html.has-custom-title-bar.abj-glass {
+  --abj-title-bar-background: var(--abj-glass-surface);
+}
+
+// With a custom backdrop the strip stays see-through, so the backdrop continues under the window controls
+html.has-custom-title-bar:is(
+  [data-abj-backdrop="aurora"],
+  [data-abj-backdrop="video"],
+  [data-abj-backdrop="mica"],
+  [data-abj-backdrop="acrylic"]
+) {
+  --abj-title-bar-background: transparent;
+}
+
+// Bubbles, font and interface scale
+
+html.abj-bubble-radius body {
+  --border-radius-messages: var(--abj-bubble-radius) !important;
+  --border-radius-messages-small: calc(var(--abj-bubble-radius) * 0.4) !important;
+}
+
+html.abj-no-bubble-tails {
+  .Message .svg-appendix {
+    display: none;
+  }
+
+  .Message.last-in-group .message-content.has-appendix {
+    --border-bottom-left-radius: var(--border-radius-messages-small) !important;
+    --border-bottom-right-radius: var(--border-radius-messages-small) !important;
+  }
+
+  .Message.own.last-in-group .message-content.has-appendix {
+    border-bottom-right-radius: var(--border-radius-messages-small);
+  }
+}
+
+html.abj-font body {
+  --font-family: var(--abj-font-family) !important;
+}
+
+// The interface is sized in `rem`, so the root font size scales all of it
+html.abj-ui-scale {
+  font-size: calc(16px * var(--abj-ui-scale)) !important;
+
+  body {
+    font-size: 1rem;
+  }
+}

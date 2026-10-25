@@ -1,13 +1,14 @@
 import type { IDimensions } from '../types';
 
 import { requestMutation } from '../lib/fasterdom/fasterdom';
+import { TITLE_BAR_HEIGHT } from '../customization/electronBridge';
 import { IS_IOS } from './browser/windowEnvironment';
 import { throttle } from './schedulers';
 
 const WINDOW_ORIENTATION_CHANGE_THROTTLE_MS = 100;
 const WINDOW_RESIZE_THROTTLE_MS = 250;
 
-let initialHeight = window.innerHeight;
+let initialHeight = getInnerHeight();
 let currentWindowSize = updateSizes();
 
 const handleResize = throttle(() => {
@@ -15,7 +16,7 @@ const handleResize = throttle(() => {
 }, WINDOW_RESIZE_THROTTLE_MS, true);
 
 const handleOrientationChange = throttle(() => {
-  initialHeight = window.innerHeight;
+  initialHeight = getInnerHeight();
   handleResize();
 }, WINDOW_ORIENTATION_CHANGE_THROTTLE_MS, false);
 
@@ -31,7 +32,7 @@ export function updateSizes(): IDimensions {
   if (IS_IOS) {
     height = window.visualViewport!.height + window.visualViewport!.pageTop;
   } else {
-    height = window.innerHeight;
+    height = getInnerHeight();
   }
 
   requestMutation(() => {
@@ -41,8 +42,13 @@ export function updateSizes(): IDimensions {
 
   return {
     width: window.innerWidth,
-    height: window.innerHeight,
+    height: getInnerHeight(),
   };
+}
+
+// The custom title bar of the desktop app takes the top of the window, outside of the page
+function getInnerHeight() {
+  return window.innerHeight - TITLE_BAR_HEIGHT;
 }
 
 const windowSize = {

@@ -1,7 +1,7 @@
 'use strict';
 
 const {
-  app, BrowserWindow, ipcMain, nativeTheme, net, protocol, shell,
+  app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, net, protocol, shell, Tray,
 } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,6 +13,7 @@ const APP_SCHEME = 'app';
 const APP_HOST = 'abudjagram';
 const APP_URL = `${APP_SCHEME}://${APP_HOST}/`;
 const DIST_DIR = path.join(__dirname, '..', 'dist');
+const ICON_PATH = path.join(__dirname, 'icon.png');
 const DEV_URL = process.env.ABUDJAGRAM_DEV_URL;
 // A named profile gets its own data folder, so it runs alongside the default one (e.g. a second account)
 const PROFILE = process.env.ABUDJAGRAM_PROFILE;
@@ -25,6 +26,9 @@ const WINDOW_STATE_FILE = path.join(app.getPath('userData'), 'window-state.json'
 const DEFAULT_WINDOW_STATE = { width: 1280, height: 820 };
 const MIN_WIDTH = 380;
 const MIN_HEIGHT = 500;
+const TITLE_BAR_HEIGHT = 32;
+const TRAY_ICON_SIZE = 16;
+const HIDDEN_LAUNCH_ARG = '--hidden';
 const WINDOWS_11_FIRST_BUILD = 22000;
 const BACKGROUND_MATERIALS = new Set(['none', 'mica', 'acrylic', 'tabbed']);
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
@@ -32,10 +36,16 @@ const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 // Native materials (Mica / Acrylic) are only drawn by DWM on Windows 11
 const CAN_USE_BACKGROUND_MATERIAL = process.platform === 'win32'
   && Number(os.release().split('.')[2]) >= WINDOWS_11_FIRST_BUILD;
+// macOS keeps its own traffic lights; elsewhere the page draws the title bar under native window controls
+const HAS_CUSTOM_TITLE_BAR = process.platform !== 'darwin';
 
 let mainWindow;
+let tray;
+let isQuitting = false;
+let badgeCount = 0;
 
 app.setName(APP_NAME);
+if (process.platform === 'win32') app.setAppUserModelId('com.abudjagram.desktop');
 
 protocol.registerSchemesAsPrivileged([{
   scheme: APP_SCHEME,
@@ -53,20 +63,19 @@ protocol.registerSchemesAsPrivileged([{
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
-  });
+  app.on('second-instance', showMainWindow);
 
   app.whenReady().then(() => {
     protocol.handle(APP_SCHEME, handleAppRequest);
     registerIpcHandlers();
     createMainWindow();
+    createTray();
 
-    app.on('activate', () => {
-      if (!BrowserWindow.getAllWindows().length) createMainWindow();
-    });
+    app.on('activate', showMainWindow);
+  });
+
+  app.on('before-quit', () => {
+    isQuitting = true;
   });
 
   app.on('window-all-closed', () => {
@@ -76,15 +85,20 @@ if (!app.requestSingleInstanceLock()) {
 
 function createMainWindow() {
   const windowState = readWindowState();
+  const isLaunchedHidden = process.argv.includes(HIDDEN_LAUNCH_ARG);
 
   mainWindow = new BrowserWindow({
     ...windowState,
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     title: APP_NAME,
-    icon: path.join(__dirname, 'icon.png'),
+    icon: ICON_PATH,
     show: false,
     autoHideMenuBar: true,
+    ...(HAS_CUSTOM_TITLE_BAR && {
+      titleBarStyle: 'hidden',
+      titleBarOverlay: buildTitleBarOverlay(),
+    }),
     // Transparent backing lets a native material show through once the page clears its background
     backgroundColor: CAN_USE_BACKGROUND_MATERIAL ? '#00000000' : getThemeBackgroundColor(),
     webPreferences: {
@@ -93,19 +107,30 @@ function createMainWindow() {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: true,
+      additionalArguments: [`--abj-title-bar-height=${HAS_CUSTOM_TITLE_BAR ? TITLE_BAR_HEIGHT : 0}`],
     },
   });
 
   if (windowState.isMaximized) mainWindow.maximize();
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
-  mainWindow.on('close', () => writeWindowState(mainWindow));
+  mainWindow.once('ready-to-show', () => {
+    if (!isLaunchedHidden) mainWindow.show();
+  });
+  mainWindow.on('focus', () => mainWindow.flashFrame(false));
+  // Closing the window keeps the app running in the tray, like other desktop messengers
+  mainWindow.on('close', (e) => {
+    writeWindowState(mainWindow);
+    if (isQuitting || !tray) return;
+
+    e.preventDefault();
+    mainWindow.hide();
+  });
   mainWindow.on('closed', () => {
     mainWindow = undefined;
   });
   mainWindow.on('page-title-updated', (e, title) => {
     e.preventDefault();
-    mainWindow.setTitle(title.replace(/^Telegram( Beta)?/, APP_NAME));
+    mainWindow.setTitle(title.replace(/Telegram( Beta)?/, APP_NAME));
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -119,6 +144,42 @@ function createMainWindow() {
   });
 
   mainWindow.loadURL(DEV_URL || APP_URL);
+}
+
+function showMainWindow() {
+  if (!mainWindow) {
+    createMainWindow();
+    return;
+  }
+
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createTray() {
+  tray = new Tray(nativeImage.createFromPath(ICON_PATH).resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE }));
+  tray.setToolTip(APP_NAME);
+  tray.on('click', showMainWindow);
+  updateTrayMenu();
+}
+
+function updateTrayMenu() {
+  if (!tray) return;
+
+  tray.setToolTip(badgeCount ? `${APP_NAME} — ${badgeCount}` : APP_NAME);
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Открыть Abudjagram', click: showMainWindow },
+    { type: 'separator' },
+    {
+      label: 'Запускать вместе с Windows',
+      type: 'checkbox',
+      checked: getIsAutoLaunchEnabled(),
+      click: (item) => setIsAutoLaunchEnabled(item.checked),
+    },
+    { type: 'separator' },
+    { label: 'Выход', click: () => app.quit() },
+  ]));
 }
 
 function registerIpcHandlers() {
@@ -139,8 +200,51 @@ function registerIpcHandlers() {
 
     nativeTheme.themeSource = theme;
     const win = BrowserWindow.fromWebContents(e.sender);
-    if (win && !CAN_USE_BACKGROUND_MATERIAL) win.setBackgroundColor(getThemeBackgroundColor());
+    if (!win) return;
+
+    if (!CAN_USE_BACKGROUND_MATERIAL) win.setBackgroundColor(getThemeBackgroundColor());
+    if (HAS_CUSTOM_TITLE_BAR) win.setTitleBarOverlay(buildTitleBarOverlay());
   });
+
+  ipcMain.on('app:set-badge', (e, count, imageDataUrl) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win || !Number.isInteger(count) || count < 0) return;
+
+    if (count > badgeCount && !win.isFocused()) win.flashFrame(true);
+    badgeCount = count;
+
+    if (process.platform === 'win32') {
+      const image = count && typeof imageDataUrl === 'string' ? nativeImage.createFromDataURL(imageDataUrl) : undefined;
+      // eslint-disable-next-line no-null/no-null
+      win.setOverlayIcon(image || null, count ? `${count}` : '');
+    } else {
+      app.setBadgeCount(count);
+    }
+
+    updateTrayMenu();
+  });
+
+  ipcMain.handle('app:get-auto-launch', getIsAutoLaunchEnabled);
+  ipcMain.on('app:set-auto-launch', (e, isEnabled) => {
+    setIsAutoLaunchEnabled(Boolean(isEnabled));
+  });
+}
+
+function getIsAutoLaunchEnabled() {
+  return app.getLoginItemSettings({ args: [HIDDEN_LAUNCH_ARG] }).openAtLogin;
+}
+
+function setIsAutoLaunchEnabled(isEnabled) {
+  app.setLoginItemSettings({ openAtLogin: isEnabled, args: [HIDDEN_LAUNCH_ARG] });
+  updateTrayMenu();
+}
+
+function buildTitleBarOverlay() {
+  return {
+    color: '#00000000',
+    symbolColor: nativeTheme.shouldUseDarkColors ? '#FFFFFF' : '#000000',
+    height: TITLE_BAR_HEIGHT,
+  };
 }
 
 function handleAppRequest(request) {

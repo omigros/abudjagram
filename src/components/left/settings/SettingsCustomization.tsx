@@ -4,8 +4,9 @@ import {
 } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
+import type { ThemePreset } from '../../../customization/presets';
 import type {
-  AnimationEasing, AuroraPalette, BackdropKind, CustomizationSettings, MessageAppearance,
+  AnimationEasing, AuroraPalette, BackdropKind, CustomizationSettings, FontPreset, MessageAppearance,
 } from '../../../customization/settings';
 
 import download from '../../../util/download';
@@ -13,6 +14,8 @@ import { openSystemFilesDialog } from '../../../util/systemFilesDialog';
 import {
   getCanUseBackgroundMaterial, removeBackdropVideo, saveBackdropVideo,
 } from '../../../customization/applyCustomization';
+import { ELECTRON_BRIDGE } from '../../../customization/electronBridge';
+import { applyThemePreset, THEME_PRESETS } from '../../../customization/presets';
 import {
   exportCustomization,
   getCustomization,
@@ -57,6 +60,10 @@ const MAX_DIM = 80;
 const MIN_SPEED = 50;
 const MAX_SPEED = 200;
 const SPEED_STEP = 10;
+const MAX_BUBBLE_RADIUS = 24;
+const MIN_UI_SCALE = 80;
+const MAX_UI_SCALE = 130;
+const UI_SCALE_STEP = 5;
 
 const SettingsCustomization = ({
   isActive,
@@ -69,8 +76,14 @@ const SettingsCustomization = ({
   const [settings, setSettings] = useState<CustomizationSettings>(getCustomization);
   const [cssDraft, setCssDraft] = useState(settings.customCss);
   const [videoUrlDraft, setVideoUrlDraft] = useState(settings.videoUrl || '');
+  const [fontDraft, setFontDraft] = useState(settings.customFontFamily || '');
+  const [isAutoLaunchEnabled, setIsAutoLaunchEnabled] = useState<boolean>();
 
   useEffect(() => subscribeToCustomization(setSettings), []);
+
+  useEffect(() => {
+    void ELECTRON_BRIDGE?.getAutoLaunch().then(setIsAutoLaunchEnabled);
+  }, []);
 
   useHistoryBack({
     isActive,
@@ -115,6 +128,39 @@ const SettingsCustomization = ({
     { value: 'pop', label: lang('AbjAppearancePop') },
     { value: 'blur', label: lang('AbjAppearanceBlur') },
   ], [lang]);
+
+  const fontOptions = useMemo(() => [
+    { value: 'default', label: lang('AbjFontDefault') },
+    { value: 'system', label: lang('AbjFontSystem') },
+    { value: 'inter', label: 'Inter' },
+    { value: 'manrope', label: 'Manrope' },
+    { value: 'nunito', label: 'Nunito' },
+    { value: 'jetbrains', label: 'JetBrains Mono' },
+    { value: 'custom', label: lang('AbjFontCustom') },
+  ], [lang]);
+
+  const handleApplyPreset = useLastCallback((preset: ThemePreset) => {
+    const next = applyThemePreset(settings, preset);
+    updateCustomization(next);
+    setFontDraft(next.customFontFamily || '');
+  });
+
+  const handleFontDraftChange = useLastCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setFontDraft(e.target.value);
+  });
+
+  const handleFontCommit = useLastCallback(() => {
+    updateCustomization({ customFontFamily: fontDraft.trim() || undefined });
+  });
+
+  const handleFontKeyDown = useLastCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleFontCommit();
+  });
+
+  const handleAutoLaunchChange = useLastCallback((isChecked: boolean) => {
+    ELECTRON_BRIDGE?.setAutoLaunch(isChecked);
+    setIsAutoLaunchEnabled(isChecked);
+  });
 
   const handleChooseVideo = useLastCallback(() => {
     openSystemFilesDialog(VIDEO_ACCEPT, async (e) => {
@@ -177,6 +223,7 @@ const SettingsCustomization = ({
     resetCustomization();
     setCssDraft('');
     setVideoUrlDraft('');
+    setFontDraft('');
   });
 
   const isGlassDisabled = !settings.isGlassEnabled;
@@ -184,6 +231,21 @@ const SettingsCustomization = ({
 
   return (
     <div className="settings-content custom-scroll">
+      <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjPresets')}</IslandTitle>
+      <div className={styles.presets}>
+        {THEME_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            className={styles.preset}
+            onClick={() => handleApplyPreset(preset)}
+          >
+            <span className={styles.presetPreview} style={`background: ${preset.preview}`} />
+            <span className={styles.presetName}>{lang(preset.nameKey)}</span>
+          </button>
+        ))}
+      </div>
+
       <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjGlass')}</IslandTitle>
       <Island>
         <Checkbox
@@ -292,6 +354,54 @@ const SettingsCustomization = ({
         </Island>
       )}
 
+      <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjMessages')}</IslandTitle>
+      <Island>
+        <RangeSlider
+          label={lang('AbjBubbleRadius')}
+          min={0}
+          max={MAX_BUBBLE_RADIUS}
+          value={settings.bubbleRadius}
+          renderValue={(value) => `${value} px`}
+          onChange={(value) => updateCustomization({ bubbleRadius: value })}
+        />
+        <Checkbox
+          label={lang('AbjBubbleTails')}
+          checked={settings.hasBubbleTails}
+          onCheck={(isChecked) => updateCustomization({ hasBubbleTails: isChecked })}
+        />
+      </Island>
+
+      <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjFont')}</IslandTitle>
+      <Island>
+        <RadioGroup
+          name="abj-font"
+          options={fontOptions}
+          selected={settings.fontPreset}
+          onChange={(value) => updateCustomization({ fontPreset: value as FontPreset })}
+        />
+        {settings.fontPreset === 'custom' && (
+          <div className={styles.field}>
+            <InputText
+              label={lang('AbjFontCustomName')}
+              value={fontDraft}
+              placeholder="Comic Sans MS"
+              onChange={handleFontDraftChange}
+              onBlur={handleFontCommit}
+              onKeyDown={handleFontKeyDown}
+            />
+          </div>
+        )}
+        <RangeSlider
+          label={lang('AbjUiScale')}
+          min={MIN_UI_SCALE}
+          max={MAX_UI_SCALE}
+          step={UI_SCALE_STEP}
+          value={settings.uiScale}
+          renderValue={(value) => `${value}%`}
+          onChange={(value) => updateCustomization({ uiScale: value })}
+        />
+      </Island>
+
       <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjAnimations')}</IslandTitle>
       <Island>
         <RangeSlider
@@ -345,6 +455,21 @@ const SettingsCustomization = ({
           </Button>
         </div>
       </Island>
+
+      {ELECTRON_BRIDGE && (
+        <>
+          <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjApp')}</IslandTitle>
+          <Island>
+            <Checkbox
+              label={lang('AbjAutoLaunch')}
+              subLabel={lang('AbjAutoLaunchInfo')}
+              checked={Boolean(isAutoLaunchEnabled)}
+              disabled={isAutoLaunchEnabled === undefined}
+              onCheck={handleAutoLaunchChange}
+            />
+          </Island>
+        </>
+      )}
 
       <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjBackup')}</IslandTitle>
       <Island>
