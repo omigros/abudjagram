@@ -16,3 +16,4 @@ dev/perf/screenshot*
 release/
 .npm-*.log
 abudjagram_git/
+dist/
