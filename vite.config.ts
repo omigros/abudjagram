@@ -303,10 +303,10 @@ function buildCsp(appEnv: string) {
   script-src 'self' 'wasm-unsafe-eval'
     https://t.me/_websync_ https://telegram.me/_websync_ https://telegram.dog/_websync_;
   worker-src 'self'${appEnv === 'development' ? ' blob:' : ''};
-  style-src 'self' 'unsafe-inline';
-  font-src 'self' data:;
-  img-src 'self' data: blob: https://ss3.4sqi.net/img/categories_v2/;
-  media-src 'self' blob: data:;
+  style-src 'self' 'unsafe-inline' https:;
+  font-src 'self' data: https:;
+  img-src 'self' data: blob: https:;
+  media-src 'self' blob: data: https:;
   object-src 'none';
   frame-src http: https:
     bitkeep: bnc: bybitapp: echooo: imtokenv2: mytonwallet-tc:

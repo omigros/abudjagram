@@ -167,6 +167,17 @@ const SettingsMain = ({
           </ListItem>
 
           <ListItem
+            icon="appearance-filled"
+            iconBg="premium"
+            multiline
+            narrow
+            onClick={() => openSettingsScreen({ screen: SettingsScreens.Customization })}
+          >
+            <span className="title">{lang('AbjCustomization')}</span>
+            <span className="subtitle">{lang('AbjCustomizationDesc')}</span>
+          </ListItem>
+
+          <ListItem
             icon="animations-filled"
             iconBg="purple"
             multiline

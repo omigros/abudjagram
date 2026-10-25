@@ -5,7 +5,7 @@
   "author": "Alexander Zinchuk (alexander@zinchuk.com)",
   "license": "GPL-3.0-or-later",
   "type": "module",
-  "main": "index.js",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "cross-env APP_ENV=development vite --mode development",
     "dev:mocked": "cross-env APP_ENV=test APP_MOCKED_CLIENT=1 vite --mode development --port 1235",
@@ -19,6 +19,10 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "electron:dev": "cross-env ABUDJAGRAM_DEV_URL=http://localhost:1234 electron .",
+    "electron:start": "electron .",
+    "electron:build": "npm run build:production && electron-builder --win",
+    "electron:pack": "npm run build:production && electron-builder --win --dir",
     "telegraph:update_changelog": "node ./dev/telegraphChangelog.js",
     "check:ts": "tsc && eslint --cache --cache-location .cache/.eslintcache",
     "check:css": "stylelint \"**/*.{css,scss}\" --cache --cache-location .cache/.stylelintcache",
@@ -69,6 +73,8 @@
     "@typescript-eslint/parser": "^8.71.1",
     "autoprefixer": "^10.6.1",
     "cross-env": "^10.1.0",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
     "eslint": "^10.12.0",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import-x": "^4.17.1",
@@ -157,5 +163,28 @@
     "@parcel/watcher@2.6.0": true,
     "ttf2woff2@8.0.1": true,
     "unrs-resolver@1.12.2": true
+  },
+  "build": {
+    "appId": "com.abudjagram.desktop",
+    "productName": "Abudjagram",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**",
+      "dist/**",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "electron/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

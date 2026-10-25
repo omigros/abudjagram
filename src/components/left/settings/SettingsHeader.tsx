@@ -145,6 +145,8 @@ const SettingsHeader = ({
         return <h3>{lang('Stickers')}</h3>;
       case SettingsScreens.Experimental:
         return <h3>{lang('SettingsExperimental')}</h3>;
+      case SettingsScreens.Customization:
+        return <h3>{lang('AbjCustomization')}</h3>;
 
       case SettingsScreens.GeneralChatBackground:
         return <h3>{lang('ChatBackground')}</h3>;

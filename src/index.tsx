@@ -36,6 +36,7 @@ import setupTauriListeners from './util/tauri/setupTauriListeners';
 import updateWebmanifest from './util/updateWebmanifest';
 
 import App from './components/App';
+import { initCustomization } from './customization/applyCustomization';
 
 import './assets/fonts/roboto.css';
 import './styles/index.scss';
@@ -43,6 +44,8 @@ import './styles/index.scss';
 if (STRICTERDOM_ENABLED) {
   enableStrict();
 }
+
+initCustomization();
 
 if (IS_TAURI) {
   initTauriApi();

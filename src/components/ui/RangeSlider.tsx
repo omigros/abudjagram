@@ -56,10 +56,9 @@ const RangeSlider: FC<OwnProps> = ({
     if (options) {
       return (value / (options.length - 1)) * 100;
     } else {
-      const possibleValuesLength = (max - min) / step;
-      return ((value - min) / possibleValuesLength) * 100;
+      return ((value - min) / (max - min)) * 100;
     }
-  }, [options, value, max, min, step]);
+  }, [options, value, max, min]);
 
   function renderTopRow() {
     if (isCenteredLayout) {

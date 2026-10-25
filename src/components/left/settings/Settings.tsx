@@ -20,6 +20,7 @@ import SettingsActiveSessions from './SettingsActiveSessions';
 import SettingsActiveWebsites from './SettingsActiveWebsites';
 import SettingsAutoDeleteMessages from './SettingsAutoDeleteMessages';
 import SettingsCustomEmoji from './SettingsCustomEmoji';
+import SettingsCustomization from './SettingsCustomization';
 import SettingsDataStorage from './SettingsDataStorage';
 import SettingsDoNotTranslate from './SettingsDoNotTranslate';
 import SettingsEditProfile from './SettingsEditProfile';
@@ -324,6 +325,10 @@ const Settings = ({
       case SettingsScreens.Experimental:
         return (
           <SettingsExperimental isActive={isScreenActive} onReset={handleReset} />
+        );
+      case SettingsScreens.Customization:
+        return (
+          <SettingsCustomization isActive={isScreenActive} onReset={handleReset} />
         );
       case SettingsScreens.GeneralChatBackground:
         return (
