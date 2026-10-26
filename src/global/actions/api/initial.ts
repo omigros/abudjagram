@@ -43,6 +43,7 @@ import { forceWebsync } from '../../../util/websync';
 import {
   callApi, callApiLocal, closeApi, initApi, setShouldEnableDebugLog,
 } from '../../../api/gramjs';
+import { getApiCredentials } from '../../../customization/apiCredentials';
 import { removeGlobalFromCache, removeSharedStateFromCache } from '../../cache';
 import {
   addActionHandler, getGlobal, setGlobal,
@@ -87,6 +88,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
     } = selectSharedSettings(global);
 
     const hasTestParam = request ? request.isTest : window.location.search.includes('test');
+    const apiCredentials = getApiCredentials();
 
     const isTestServer = request?.isTest ?? global.config?.isTestServer ?? hasTestParam;
     const accountsInfo = getAccountsInfo();
@@ -112,6 +114,8 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
       isTestServerRequested: hasTestParam,
       accountIds,
       hasPasskeySupport: IS_WEBAUTHN_SUPPORTED,
+      apiId: apiCredentials?.apiId,
+      apiHash: apiCredentials?.apiHash,
     });
 
     void setShouldEnableDebugLog(Boolean(shouldCollectDebugLogs));

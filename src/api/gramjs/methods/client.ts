@@ -99,7 +99,7 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
     userAgent, platform, sessionData, isWebmSupported, maxBufferSize, webAuthToken, dcId,
     mockScenario, shouldForceHttpTransport, shouldAllowHttpTransport,
     shouldDebugExportedSenders, langCode, isTestServerRequested, accountIds,
-    hasPasskeySupport, webAuthUserId,
+    hasPasskeySupport, webAuthUserId, apiId, apiHash,
   } = initialArgs;
 
   const session = new sessions.CallbackSession(sessionData, onSessionUpdate);
@@ -110,8 +110,8 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
 
   client = new TelegramClient(
     session,
-    TELEGRAM_API_ID,
-    TELEGRAM_API_HASH,
+    apiId || TELEGRAM_API_ID,
+    apiHash || TELEGRAM_API_HASH,
     {
       deviceModel: navigator.userAgent || userAgent || DEFAULT_USER_AGENT,
       systemVersion: platform || DEFAULT_PLATFORM,
@@ -162,6 +162,12 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error(err);
+
+      // Wrong keys entered by the user surface here from the QR login; the UI sends them back to key setup
+      if (err.errorMessage === 'API_ID_INVALID') {
+        onAuthError(err);
+        return;
+      }
 
       if (err.message !== 'Disconnect' && err.message !== 'Cannot send requests while disconnected') {
         sendApiUpdate({

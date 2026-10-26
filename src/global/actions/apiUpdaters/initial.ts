@@ -19,6 +19,7 @@ import { setServerTimeOffset } from '../../../util/serverTime';
 import { updateSessionUserId } from '../../../util/sessions';
 import { finishWebLogin, rejectWebLogin } from '../../../util/webLogin';
 import { forceWebsync } from '../../../util/websync';
+import { rejectApiCredentials } from '../../../customization/apiCredentials';
 import {
   addActionHandler, getActions, getGlobal, setGlobal,
 } from '../../index';
@@ -201,6 +202,8 @@ function onUpdateAuthorizationState<T extends GlobalState>(global: T, update: Ap
 }
 
 function onUpdateAuthorizationError<T extends GlobalState>(global: T, update: ApiUpdateAuthorizationError) {
+  if (update.errorCode === 'API_ID_INVALID' && rejectApiCredentials()) return;
+
   if (update.errorCode === 'PASSKEY_CREDENTIAL_NOT_FOUND') {
     getActions().showNotification({
       message: update.errorKey,

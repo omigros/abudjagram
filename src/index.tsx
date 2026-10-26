@@ -11,7 +11,7 @@ import {
 } from './global';
 
 import {
-  DEBUG, STRICTERDOM_ENABLED,
+  DEBUG, IS_MOCKED_CLIENT, STRICTERDOM_ENABLED,
 } from './config';
 import { enableStrict, requestMutation } from './lib/fasterdom/fasterdom';
 import { selectChat, selectCurrentMessageList, selectPeerFullInfo, selectTabState } from './global/selectors';
@@ -36,6 +36,8 @@ import setupTauriListeners from './util/tauri/setupTauriListeners';
 import updateWebmanifest from './util/updateWebmanifest';
 
 import App from './components/App';
+import { getApiCredentials } from './customization/apiCredentials';
+import ApiSetupScreen from './customization/ApiSetupScreen';
 import { initCustomization } from './customization/applyCustomization';
 
 import './assets/fonts/roboto.css';
@@ -62,6 +64,12 @@ async function init() {
   }
 
   if (!(window as any).isCompatTestPassed) return;
+
+  if (!IS_MOCKED_CLIENT && !getApiCredentials()) {
+    // The setup screen reloads the page once the keys are saved
+    TeactDOM.render(<ApiSetupScreen />, document.getElementById('root')!);
+    return;
+  }
 
   checkAndAssignPermanentWebVersion();
   listenOtherClients();

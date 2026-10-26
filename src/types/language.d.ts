@@ -3388,6 +3388,8 @@ export interface LangPair {
   'AbjApp': undefined;
   'AbjAutoLaunch': undefined;
   'AbjAutoLaunchInfo': undefined;
+  'AbjApiKeys': undefined;
+  'AbjApiKeysInfo': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

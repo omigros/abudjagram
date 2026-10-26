@@ -11,6 +11,7 @@ import type {
 
 import download from '../../../util/download';
 import { openSystemFilesDialog } from '../../../util/systemFilesDialog';
+import { clearApiCredentials, getIsApiCredentialsBuiltIn } from '../../../customization/apiCredentials';
 import {
   getCanUseBackgroundMaterial, removeBackdropVideo, saveBackdropVideo,
 } from '../../../customization/applyCustomization';
@@ -162,6 +163,11 @@ const SettingsCustomization = ({
     setIsAutoLaunchEnabled(isChecked);
   });
 
+  const handleChangeApiKeys = useLastCallback(() => {
+    clearApiCredentials();
+    window.location.reload();
+  });
+
   const handleChooseVideo = useLastCallback(() => {
     openSystemFilesDialog(VIDEO_ACCEPT, async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
@@ -226,6 +232,7 @@ const SettingsCustomization = ({
     setFontDraft('');
   });
 
+  const canChangeApiKeys = !getIsApiCredentialsBuiltIn();
   const isGlassDisabled = !settings.isGlassEnabled;
   const hasCustomBackdrop = settings.backdrop === 'aurora' || settings.backdrop === 'video';
 
@@ -456,17 +463,25 @@ const SettingsCustomization = ({
         </div>
       </Island>
 
-      {ELECTRON_BRIDGE && (
+      {(ELECTRON_BRIDGE || canChangeApiKeys) && (
         <>
           <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjApp')}</IslandTitle>
           <Island>
-            <Checkbox
-              label={lang('AbjAutoLaunch')}
-              subLabel={lang('AbjAutoLaunchInfo')}
-              checked={Boolean(isAutoLaunchEnabled)}
-              disabled={isAutoLaunchEnabled === undefined}
-              onCheck={handleAutoLaunchChange}
-            />
+            {ELECTRON_BRIDGE && (
+              <Checkbox
+                label={lang('AbjAutoLaunch')}
+                subLabel={lang('AbjAutoLaunchInfo')}
+                checked={Boolean(isAutoLaunchEnabled)}
+                disabled={isAutoLaunchEnabled === undefined}
+                onCheck={handleAutoLaunchChange}
+              />
+            )}
+            {canChangeApiKeys && (
+              <ListItem icon="key" multiline onClick={handleChangeApiKeys}>
+                <span className="title">{lang('AbjApiKeys')}</span>
+                <span className="subtitle">{lang('AbjApiKeysInfo')}</span>
+              </ListItem>
+            )}
           </Island>
         </>
       )}

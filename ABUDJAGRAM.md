@@ -5,13 +5,14 @@
 
 ## Первый запуск
 
-1. Получите `api_id` и `api_hash` на [my.telegram.org](https://my.telegram.org) → API development tools.
-2. Впишите их в `.env`:
-   ```
-   TELEGRAM_API_ID=...
-   TELEGRAM_API_HASH=...
-   ```
-3. `npm install`
+1. `npm install`
+2. Получите `api_id` и `api_hash` на [my.telegram.org](https://my.telegram.org) → API development tools.
+3. Введите их на экране «Ключи Telegram API», который приложение покажет при первом запуске.
+   Ключи хранятся только на этом компьютере; сменить их можно в «Кастомизация» → «Приложение».
+   Если Telegram отклонит ключи, приложение само вернётся к этому экрану.
+
+Можно и вшить ключи в сборку через `.env` (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`) — тогда экран не появляется.
+Сборка без ключей в `.env` подходит для раздачи: каждый пользователь вводит свои.
 
 ## Команды
 
@@ -49,7 +50,7 @@
 | Путь | Назначение |
 | --- | --- |
 | `electron/main.cjs`, `electron/preload.cjs` | Оболочка Electron: окно, протокол `app://`, мост `window.abudjagram` |
-| `src/customization/` | Хранение настроек, применение к DOM, стили стекла, фонов и анимаций |
+| `src/customization/` | Настройки и их применение, стили стекла и фонов, ключи API и экран их ввода |
 | `src/components/left/settings/SettingsCustomization.tsx` | Экран настроек |
 
 Изменения в коде оригинала минимальны (пункт меню, роутинг экрана, CSP, строки локализации), чтобы было проще подтягивать обновления из upstream.

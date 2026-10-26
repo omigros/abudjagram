@@ -173,7 +173,11 @@
     "files": [
       "electron/**",
       "dist/**",
-      "package.json"
+      "!dist/**/*.map",
+      "!dist/build-stats.json",
+      "!dist/statoscope-report.html",
+      "package.json",
+      "!node_modules/**"
     ],
     "asar": true,
     "win": {
@@ -185,6 +189,10 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "electronLanguages": [
+      "ru",
+      "en-US"
+    ]
   }
 }

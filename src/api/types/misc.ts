@@ -33,6 +33,8 @@ export interface ApiInitialArgs {
   isTestServerRequested?: boolean;
   accountIds?: string[];
   hasPasskeySupport?: boolean;
+  apiId?: number;
+  apiHash?: string;
 }
 
 export type ApiPasskeyOption = {

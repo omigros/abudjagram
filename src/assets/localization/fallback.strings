@@ -4506,3 +4506,5 @@
 "AbjApp" = "Приложение";
 "AbjAutoLaunch" = "Запускать вместе с Windows";
 "AbjAutoLaunchInfo" = "Abudjagram стартует свёрнутым в трей";
+"AbjApiKeys" = "Сменить ключи Telegram API";
+"AbjApiKeysInfo" = "Откроется экран ввода новых api_id и api_hash";
