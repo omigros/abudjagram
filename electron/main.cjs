@@ -1,7 +1,7 @@
 'use strict';
 
 const {
-  app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, net, protocol, shell, Tray,
+  app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, net, protocol, screen, shell, Tray,
 } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -23,12 +23,14 @@ if (PROFILE) {
 }
 
 const WINDOW_STATE_FILE = path.join(app.getPath('userData'), 'window-state.json');
+const WINDOW_CONFIG_FILE = path.join(app.getPath('userData'), 'window-config.json');
 const DEFAULT_WINDOW_STATE = { width: 1280, height: 820 };
 const MIN_WIDTH = 380;
 const MIN_HEIGHT = 500;
 const TITLE_BAR_HEIGHT = 32;
 const TRAY_ICON_SIZE = 16;
 const HIDDEN_LAUNCH_ARG = '--hidden';
+const TRANSPARENT_WINDOW_ARG = '--abj-transparent-window';
 const WINDOWS_11_FIRST_BUILD = 22000;
 const BACKGROUND_MATERIALS = new Set(['none', 'mica', 'acrylic', 'tabbed']);
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
@@ -43,6 +45,9 @@ let mainWindow;
 let tray;
 let isQuitting = false;
 let badgeCount = 0;
+// Transparent windows can't be maximized natively on Windows, so the bounds before maximizing are kept here
+let boundsBeforeMaximize;
+const TRANSPARENT_WINDOWS = new WeakSet();
 
 app.setName(APP_NAME);
 if (process.platform === 'win32') app.setAppUserModelId('com.abudjagram.desktop');
@@ -86,6 +91,10 @@ if (!app.requestSingleInstanceLock()) {
 function createMainWindow() {
   const windowState = readWindowState();
   const isLaunchedHidden = process.argv.includes(HIDDEN_LAUNCH_ARG);
+  // Transparency can only be chosen when a window is created, so switching it needs a relaunch
+  const isTransparent = HAS_CUSTOM_TITLE_BAR && readWindowConfig().isTransparent;
+  const additionalArguments = [`--abj-title-bar-height=${HAS_CUSTOM_TITLE_BAR ? TITLE_BAR_HEIGHT : 0}`];
+  if (isTransparent) additionalArguments.push(TRANSPARENT_WINDOW_ARG);
 
   mainWindow = new BrowserWindow({
     ...windowState,
@@ -95,23 +104,27 @@ function createMainWindow() {
     icon: ICON_PATH,
     show: false,
     autoHideMenuBar: true,
-    ...(HAS_CUSTOM_TITLE_BAR && {
+    ...(isTransparent ? {
+      transparent: true,
+      frame: false,
+    } : HAS_CUSTOM_TITLE_BAR && {
       titleBarStyle: 'hidden',
       titleBarOverlay: buildTitleBarOverlay(),
     }),
-    // Transparent backing lets a native material show through once the page clears its background
-    backgroundColor: CAN_USE_BACKGROUND_MATERIAL ? '#00000000' : getThemeBackgroundColor(),
+    // Transparent backing lets a native material or the desktop show through once the page clears its background
+    backgroundColor: CAN_USE_BACKGROUND_MATERIAL || isTransparent ? '#00000000' : getThemeBackgroundColor(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
       spellcheck: true,
-      additionalArguments: [`--abj-title-bar-height=${HAS_CUSTOM_TITLE_BAR ? TITLE_BAR_HEIGHT : 0}`],
+      additionalArguments,
     },
   });
 
-  if (windowState.isMaximized) mainWindow.maximize();
+  if (isTransparent) TRANSPARENT_WINDOWS.add(mainWindow);
+  if (windowState.isMaximized && !isTransparent) mainWindow.maximize();
 
   mainWindow.once('ready-to-show', () => {
     if (!isLaunchedHidden) mainWindow.show();
@@ -202,8 +215,27 @@ function registerIpcHandlers() {
     const win = BrowserWindow.fromWebContents(e.sender);
     if (!win) return;
 
+    if (isTransparentWindow(win)) return;
+
     if (!CAN_USE_BACKGROUND_MATERIAL) win.setBackgroundColor(getThemeBackgroundColor());
     if (HAS_CUSTOM_TITLE_BAR) win.setTitleBarOverlay(buildTitleBarOverlay());
+  });
+
+  ipcMain.on('window:set-transparent', (e, isEnabled) => {
+    writeWindowConfig({ ...readWindowConfig(), isTransparent: Boolean(isEnabled) });
+  });
+
+  ipcMain.on('app:relaunch', () => {
+    isQuitting = true;
+    app.relaunch();
+    app.quit();
+  });
+
+  ipcMain.on('window:minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
+  ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
+  ipcMain.on('window:toggle-maximize', (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (win) toggleMaximize(win);
   });
 
   ipcMain.on('app:set-badge', (e, count, imageDataUrl) => {
@@ -237,6 +269,42 @@ function getIsAutoLaunchEnabled() {
 function setIsAutoLaunchEnabled(isEnabled) {
   app.setLoginItemSettings({ openAtLogin: isEnabled, args: [HIDDEN_LAUNCH_ARG] });
   updateTrayMenu();
+}
+
+function toggleMaximize(win) {
+  if (!isTransparentWindow(win)) {
+    if (win.isMaximized()) win.unmaximize(); else win.maximize();
+    return;
+  }
+
+  if (boundsBeforeMaximize) {
+    win.setBounds(boundsBeforeMaximize);
+    boundsBeforeMaximize = undefined;
+    return;
+  }
+
+  boundsBeforeMaximize = win.getBounds();
+  win.setBounds(screen.getDisplayMatching(boundsBeforeMaximize).workArea);
+}
+
+function isTransparentWindow(win) {
+  return TRANSPARENT_WINDOWS.has(win);
+}
+
+function readWindowConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(WINDOW_CONFIG_FILE, 'utf8'));
+  } catch (err) {
+    return {};
+  }
+}
+
+function writeWindowConfig(config) {
+  try {
+    fs.writeFileSync(WINDOW_CONFIG_FILE, JSON.stringify(config));
+  } catch (err) {
+    // Without the config the window keeps its current mode
+  }
 }
 
 function buildTitleBarOverlay() {

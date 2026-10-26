@@ -3390,6 +3390,28 @@ export interface LangPair {
   'AbjAutoLaunchInfo': undefined;
   'AbjApiKeys': undefined;
   'AbjApiKeysInfo': undefined;
+  'AbjColors': undefined;
+  'AbjAccent': undefined;
+  'AbjAccentDefault': undefined;
+  'AbjOwnBubbleTint': undefined;
+  'AbjGlassTint': undefined;
+  'AbjBackdropGradient': undefined;
+  'AbjBackdropGradientInfo': undefined;
+  'AbjBackdropTransparent': undefined;
+  'AbjBackdropTransparentInfo': undefined;
+  'AbjGradient': undefined;
+  'AbjGradientAddColor': undefined;
+  'AbjGradientRemoveColor': undefined;
+  'AbjGradientMesh': undefined;
+  'AbjGradientLinear': undefined;
+  'AbjGradientRadial': undefined;
+  'AbjGradientAngle': undefined;
+  'AbjGradientAnimated': undefined;
+  'AbjGrain': undefined;
+  'AbjTransparentTint': undefined;
+  'AbjTransparentWindow': undefined;
+  'AbjTransparentWindowInfo': undefined;
+  'AbjRelaunch': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

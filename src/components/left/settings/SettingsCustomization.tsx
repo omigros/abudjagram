@@ -6,7 +6,7 @@ import { getActions } from '../../../global';
 
 import type { ThemePreset } from '../../../customization/presets';
 import type {
-  AnimationEasing, AuroraPalette, BackdropKind, CustomizationSettings, FontPreset, MessageAppearance,
+  AnimationEasing, AuroraPalette, BackdropKind, CustomizationSettings, FontPreset, GradientKind, MessageAppearance,
 } from '../../../customization/settings';
 
 import download from '../../../util/download';
@@ -15,7 +15,8 @@ import { clearApiCredentials, getIsApiCredentialsBuiltIn } from '../../../custom
 import {
   getCanUseBackgroundMaterial, removeBackdropVideo, saveBackdropVideo,
 } from '../../../customization/applyCustomization';
-import { ELECTRON_BRIDGE } from '../../../customization/electronBridge';
+import { ELECTRON_BRIDGE, IS_TRANSPARENT_WINDOW } from '../../../customization/electronBridge';
+import { ACCENT_PRESETS, MAX_GRADIENT_COLORS, MIN_GRADIENT_COLORS } from '../../../customization/palette';
 import { applyThemePreset, THEME_PRESETS } from '../../../customization/presets';
 import {
   exportCustomization,
@@ -30,6 +31,7 @@ import useHistoryBack from '../../../hooks/useHistoryBack';
 import useLang from '../../../hooks/useLang';
 import useLastCallback from '../../../hooks/useLastCallback';
 
+import Icon from '../../common/icons/Icon';
 import Island, { IslandTitle } from '../../gili/layout/Island';
 import Button from '../../ui/Button';
 import Checkbox from '../../ui/Checkbox';
@@ -38,6 +40,7 @@ import ListItem from '../../ui/ListItem';
 import RadioGroup from '../../ui/RadioGroup';
 import RangeSlider from '../../ui/RangeSlider';
 import TextArea from '../../ui/TextArea';
+import ColorSwatches from './ColorSwatches';
 
 import styles from './SettingsCustomization.module.scss';
 
@@ -65,6 +68,14 @@ const MAX_BUBBLE_RADIUS = 24;
 const MIN_UI_SCALE = 80;
 const MAX_UI_SCALE = 130;
 const UI_SCALE_STEP = 5;
+const MAX_GRAIN = 100;
+const MAX_ANGLE = 360;
+const ANGLE_STEP = 15;
+const MAX_TRANSPARENT_TINT = 95;
+const GLASS_TINT_PRESETS = ['#FFFFFF', '#17171C', '#1E1B2E', '#0F2A2E', '#2E1A24', '#F3E9FF'];
+const NEW_GRADIENT_COLOR = '#FFD166';
+// Transparency needs a frameless window with the custom title bar, which macOS doesn't get
+const CAN_USE_TRANSPARENT_WINDOW = Boolean(ELECTRON_BRIDGE?.titleBarHeight);
 
 const SettingsCustomization = ({
   isActive,
@@ -79,6 +90,7 @@ const SettingsCustomization = ({
   const [videoUrlDraft, setVideoUrlDraft] = useState(settings.videoUrl || '');
   const [fontDraft, setFontDraft] = useState(settings.customFontFamily || '');
   const [isAutoLaunchEnabled, setIsAutoLaunchEnabled] = useState<boolean>();
+  const [isTransparentWindowWanted, setIsTransparentWindowWanted] = useState(IS_TRANSPARENT_WINDOW);
 
   useEffect(() => subscribeToCustomization(setSettings), []);
 
@@ -97,8 +109,14 @@ const SettingsCustomization = ({
     const options = [
       { value: 'telegram', label: lang('AbjBackdropTelegram') },
       { value: 'aurora', label: lang('AbjBackdropAurora'), subLabel: lang('AbjBackdropAuroraInfo') },
+      { value: 'gradient', label: lang('AbjBackdropGradient'), subLabel: lang('AbjBackdropGradientInfo') },
       { value: 'video', label: lang('AbjBackdropVideo') },
     ];
+    if (IS_TRANSPARENT_WINDOW) {
+      options.push({
+        value: 'transparent', label: lang('AbjBackdropTransparent'), subLabel: lang('AbjBackdropTransparentInfo'),
+      });
+    }
     if (!canUseBackgroundMaterial) return options;
 
     return [
@@ -113,6 +131,12 @@ const SettingsCustomization = ({
     { value: 'sunset', label: lang('AbjPaletteSunset') },
     { value: 'ocean', label: lang('AbjPaletteOcean') },
     { value: 'neon', label: lang('AbjPaletteNeon') },
+  ], [lang]);
+
+  const gradientKindOptions = useMemo(() => [
+    { value: 'mesh', label: lang('AbjGradientMesh') },
+    { value: 'linear', label: lang('AbjGradientLinear') },
+    { value: 'radial', label: lang('AbjGradientRadial') },
   ], [lang]);
 
   const easingOptions = useMemo(() => [
@@ -161,6 +185,31 @@ const SettingsCustomization = ({
   const handleAutoLaunchChange = useLastCallback((isChecked: boolean) => {
     ELECTRON_BRIDGE?.setAutoLaunch(isChecked);
     setIsAutoLaunchEnabled(isChecked);
+  });
+
+  const handleGradientColorChange = useLastCallback((index: number, color: string) => {
+    const gradientColors = settings.gradientColors.slice();
+    gradientColors[index] = color.toUpperCase();
+    updateCustomization({ gradientColors });
+  });
+
+  const handleAddGradientColor = useLastCallback(() => {
+    updateCustomization({ gradientColors: [...settings.gradientColors, NEW_GRADIENT_COLOR] });
+  });
+
+  const handleRemoveGradientColor = useLastCallback(() => {
+    updateCustomization({ gradientColors: settings.gradientColors.slice(0, -1) });
+  });
+
+  const handleTransparentWindowChange = useLastCallback((isChecked: boolean) => {
+    ELECTRON_BRIDGE?.setTransparentWindow(isChecked);
+    setIsTransparentWindowWanted(isChecked);
+    // The see-through backdrop is the point of the mode, so it is picked right away
+    if (isChecked) updateCustomization({ backdrop: 'transparent' });
+  });
+
+  const handleRelaunch = useLastCallback(() => {
+    ELECTRON_BRIDGE?.relaunch();
   });
 
   const handleChangeApiKeys = useLastCallback(() => {
@@ -234,7 +283,8 @@ const SettingsCustomization = ({
 
   const canChangeApiKeys = !getIsApiCredentialsBuiltIn();
   const isGlassDisabled = !settings.isGlassEnabled;
-  const hasCustomBackdrop = settings.backdrop === 'aurora' || settings.backdrop === 'video';
+  const hasCustomBackdrop = settings.backdrop === 'aurora' || settings.backdrop === 'gradient'
+    || settings.backdrop === 'video';
 
   return (
     <div className="settings-content custom-scroll">
@@ -252,6 +302,22 @@ const SettingsCustomization = ({
           </button>
         ))}
       </div>
+
+      <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjAccent')}</IslandTitle>
+      <Island>
+        <ColorSwatches
+          colors={ACCENT_PRESETS}
+          selected={settings.accentColor}
+          defaultLabel={lang('AbjAccentDefault')}
+          onSelect={(color) => updateCustomization({ accentColor: color })}
+        />
+        <Checkbox
+          label={lang('AbjOwnBubbleTint')}
+          checked={Boolean(settings.isOwnBubbleTinted)}
+          disabled={!settings.accentColor}
+          onCheck={(isChecked) => updateCustomization({ isOwnBubbleTinted: isChecked || undefined })}
+        />
+      </Island>
 
       <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjGlass')}</IslandTitle>
       <Island>
@@ -301,6 +367,13 @@ const SettingsCustomization = ({
           disabled={isGlassDisabled}
           onCheck={(isChecked) => updateCustomization({ isGlassBubbles: isChecked || undefined })}
         />
+        <div className={styles.subheader}>{lang('AbjGlassTint')}</div>
+        <ColorSwatches
+          colors={GLASS_TINT_PRESETS}
+          selected={settings.glassTint}
+          defaultLabel={lang('AbjAccentDefault')}
+          onSelect={(color) => updateCustomization({ glassTint: color })}
+        />
       </Island>
 
       <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjBackdrop')}</IslandTitle>
@@ -321,7 +394,97 @@ const SettingsCustomization = ({
             onChange={(value) => updateCustomization({ backdropDim: value })}
           />
         )}
+        {hasCustomBackdrop && (
+          <RangeSlider
+            label={lang('AbjGrain')}
+            min={0}
+            max={MAX_GRAIN}
+            value={settings.grain}
+            renderValue={(value) => `${value}%`}
+            onChange={(value) => updateCustomization({ grain: value })}
+          />
+        )}
+        {settings.backdrop === 'transparent' && (
+          <RangeSlider
+            label={lang('AbjTransparentTint')}
+            min={0}
+            max={MAX_TRANSPARENT_TINT}
+            value={settings.transparentTint}
+            renderValue={(value) => `${value}%`}
+            onChange={(value) => updateCustomization({ transparentTint: value })}
+          />
+        )}
       </Island>
+
+      {settings.backdrop === 'gradient' && (
+        <>
+          <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('AbjGradient')}</IslandTitle>
+          <Island>
+            <div className={styles.gradientColors}>
+              <div
+                className={styles.gradientPreview}
+                style={`background: linear-gradient(90deg, ${settings.gradientColors.join(', ')})`}
+              />
+              {settings.gradientColors.map((color, index) => (
+                <label key={index} className={styles.gradientColor} style={`--swatch-color: ${color}`}>
+                  <input
+                    type="color"
+                    className={styles.gradientPicker}
+                    value={color}
+                    onInput={(e) => handleGradientColorChange(index, (e.target as HTMLInputElement).value)}
+                  />
+                </label>
+              ))}
+              {settings.gradientColors.length < MAX_GRADIENT_COLORS && (
+                <button
+                  type="button"
+                  className={styles.gradientButton}
+                  aria-label={lang('AbjGradientAddColor')}
+                  title={lang('AbjGradientAddColor')}
+                  onClick={handleAddGradientColor}
+                >
+                  <Icon name="add" />
+                </button>
+              )}
+              {settings.gradientColors.length > MIN_GRADIENT_COLORS && (
+                <button
+                  type="button"
+                  className={styles.gradientButton}
+                  aria-label={lang('AbjGradientRemoveColor')}
+                  title={lang('AbjGradientRemoveColor')}
+                  onClick={handleRemoveGradientColor}
+                >
+                  <Icon name="remove" />
+                </button>
+              )}
+            </div>
+            <RadioGroup
+              name="abj-gradient-kind"
+              options={gradientKindOptions}
+              selected={settings.gradientKind}
+              onChange={(value) => updateCustomization({ gradientKind: value as GradientKind })}
+            />
+            {settings.gradientKind === 'linear' && (
+              <RangeSlider
+                label={lang('AbjGradientAngle')}
+                min={0}
+                max={MAX_ANGLE}
+                step={ANGLE_STEP}
+                value={settings.gradientAngle}
+                renderValue={(value) => `${value}°`}
+                onChange={(value) => updateCustomization({ gradientAngle: value })}
+              />
+            )}
+            {settings.gradientKind === 'mesh' && (
+              <Checkbox
+                label={lang('AbjGradientAnimated')}
+                checked={settings.isGradientAnimated}
+                onCheck={(isChecked) => updateCustomization({ isGradientAnimated: isChecked })}
+              />
+            )}
+          </Island>
+        </>
+      )}
 
       {settings.backdrop === 'aurora' && (
         <>
@@ -475,6 +638,19 @@ const SettingsCustomization = ({
                 disabled={isAutoLaunchEnabled === undefined}
                 onCheck={handleAutoLaunchChange}
               />
+            )}
+            {CAN_USE_TRANSPARENT_WINDOW && (
+              <Checkbox
+                label={lang('AbjTransparentWindow')}
+                subLabel={lang('AbjTransparentWindowInfo')}
+                checked={isTransparentWindowWanted}
+                onCheck={handleTransparentWindowChange}
+              />
+            )}
+            {isTransparentWindowWanted !== IS_TRANSPARENT_WINDOW && (
+              <ListItem icon="reload" onClick={handleRelaunch}>
+                {lang('AbjRelaunch')}
+              </ListItem>
             )}
             {canChangeApiKeys && (
               <ListItem icon="key" multiline onClick={handleChangeApiKeys}>

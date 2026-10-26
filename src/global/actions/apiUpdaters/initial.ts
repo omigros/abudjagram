@@ -14,6 +14,7 @@ import type { ActionReturnType, GlobalState } from '../../types';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { getShippingError, shouldClosePaymentModal } from '../../../util/getReadableErrorText';
 import { retryLocalization } from '../../../util/localization';
+import { Bundles, loadBundle } from '../../../util/moduleLoader';
 import { getAccountsInfo, getAccountSlotUrl } from '../../../util/multiaccount';
 import { setServerTimeOffset } from '../../../util/serverTime';
 import { updateSessionUserId } from '../../../util/sessions';
@@ -91,7 +92,12 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case 'requestSync':
       resetOpenedChannelShortpollState();
       syncOpenedShortpollChannelIds(global);
-      actions.sync();
+      // `sync` lives in the main bundle, which may still be loading when a fast (e.g. mocked) connection asks for it
+      if (actions.sync) {
+        actions.sync();
+      } else {
+        void loadBundle(Bundles.Main).then(() => getActions().sync());
+      }
       break;
 
     case 'updateFetchingDifference':

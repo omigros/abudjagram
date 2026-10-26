@@ -1,4 +1,5 @@
-export type BackdropKind = 'telegram' | 'aurora' | 'video' | 'mica' | 'acrylic';
+export type BackdropKind = 'telegram' | 'aurora' | 'gradient' | 'video' | 'transparent' | 'mica' | 'acrylic';
+export type GradientKind = 'mesh' | 'linear' | 'radial';
 export type AuroraPalette = 'aurora' | 'sunset' | 'ocean' | 'neon';
 export type AnimationEasing = 'default' | 'smooth' | 'bouncy' | 'snappy';
 export type MessageAppearance = 'default' | 'fade' | 'slide' | 'pop' | 'blur';
@@ -16,6 +17,15 @@ export type CustomizationSettings = {
   videoUrl?: string;
   hasVideoFile?: boolean;
   backdropDim: number;
+  gradientColors: string[];
+  gradientKind: GradientKind;
+  gradientAngle: number;
+  isGradientAnimated: boolean;
+  grain: number;
+  transparentTint: number;
+  accentColor?: string;
+  isOwnBubbleTinted?: boolean;
+  glassTint?: string;
   animationSpeed: number;
   animationEasing: AnimationEasing;
   messageAppearance: MessageAppearance;
@@ -42,6 +52,15 @@ export const DEFAULT_CUSTOMIZATION: CustomizationSettings = {
   videoUrl: undefined,
   hasVideoFile: undefined,
   backdropDim: 0,
+  gradientColors: ['#FF7EB3', '#7AFCFF', '#B28DFF'],
+  gradientKind: 'mesh',
+  gradientAngle: 135,
+  isGradientAnimated: true,
+  grain: 0,
+  transparentTint: 35,
+  accentColor: undefined,
+  isOwnBubbleTinted: undefined,
+  glassTint: undefined,
   animationSpeed: 1,
   animationEasing: 'default',
   messageAppearance: 'default',

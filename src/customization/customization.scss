@@ -85,6 +85,24 @@ html[data-abj-aurora="neon"] {
   background-color: var(--abj-aurora-base);
 }
 
+.abj-backdrop-gradient {
+  background: var(--abj-gradient);
+}
+
+.abj-backdrop-static .abj-aurora-blob {
+  animation: none;
+}
+
+// Film grain over any custom backdrop, drawn from an SVG noise texture
+.abj-backdrop-grain {
+  position: absolute;
+  inset: 0;
+
+  opacity: var(--abj-grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
 .abj-backdrop-dim {
   position: absolute;
   inset: 0;
@@ -177,7 +195,9 @@ html[data-abj-aurora="neon"] {
 
 // A custom backdrop replaces the Telegram wallpaper. The wallpaper layer is always the first child of `#Main`.
 html[data-abj-backdrop="aurora"],
+html[data-abj-backdrop="gradient"],
 html[data-abj-backdrop="video"],
+html[data-abj-backdrop="transparent"],
 html[data-abj-backdrop="mica"],
 html[data-abj-backdrop="acrylic"] {
   &,
@@ -348,7 +368,9 @@ html.has-custom-title-bar.abj-glass {
 // With a custom backdrop the strip stays see-through, so the backdrop continues under the window controls
 html.has-custom-title-bar:is(
   [data-abj-backdrop="aurora"],
+  [data-abj-backdrop="gradient"],
   [data-abj-backdrop="video"],
+  [data-abj-backdrop="transparent"],
   [data-abj-backdrop="mica"],
   [data-abj-backdrop="acrylic"]
 ) {
@@ -387,5 +409,92 @@ html.abj-ui-scale {
 
   body {
     font-size: 1rem;
+  }
+}
+
+// See-through window: only a tint of the theme color covers the desktop behind the app
+html[data-abj-backdrop="transparent"] {
+  background: color-mix(in srgb, var(--abj-glass-tint) var(--abj-transparent-tint), transparent) !important;
+}
+
+// Window controls of the frameless transparent window
+
+.abj-window-controls {
+  position: fixed;
+  z-index: 10000;
+  top: 0;
+  right: 0;
+
+  display: flex;
+
+  height: var(--abj-title-bar-height);
+
+  -webkit-app-region: no-drag;
+}
+
+.abj-window-control {
+  cursor: default;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 2.875rem;
+  height: 100%;
+  border: none;
+
+  color: var(--color-text);
+
+  background: transparent;
+
+  transition: background-color 120ms ease;
+
+  &:hover {
+    background-color: var(--abj-glass-hover);
+  }
+}
+
+.abj-window-control-close:hover {
+  color: #FFFFFF;
+  background-color: #E81123;
+}
+
+// Accent color. Theme colors are written inline on `html`, so overrides need `!important`
+
+html.abj-accent {
+  --color-primary: var(--abj-accent) !important;
+  --color-primary-shade: var(--abj-accent-shade) !important;
+  --color-primary-shade-rgb: var(--abj-accent-shade-rgb) !important;
+  --color-primary-opacity: color-mix(in srgb, var(--abj-accent) 12%, transparent) !important;
+  --color-primary-opacity-hover: color-mix(in srgb, var(--abj-accent) 25%, transparent) !important;
+  --color-primary-tint: color-mix(in srgb, var(--abj-accent) 10%, transparent) !important;
+  --color-chat-active: var(--abj-accent) !important;
+  --color-chat-active-greyed: color-mix(in srgb, var(--abj-accent) 70%, #FFFFFF) !important;
+  --color-links: var(--abj-accent) !important;
+}
+
+html.abj-own-bubble-tint {
+  --color-background-own: color-mix(in srgb, var(--abj-accent) 18%, #FFFFFF) !important;
+  --color-background-own-apple: color-mix(in srgb, var(--abj-accent) 18%, #FFFFFF) !important;
+  --color-background-own-selected: color-mix(in srgb, var(--abj-accent) 30%, #FFFFFF) !important;
+  --color-accent-own: var(--abj-accent-shade) !important;
+  --color-message-meta-own: var(--abj-accent-shade) !important;
+  --color-own-links: var(--abj-accent-shade) !important;
+  --color-code-own: var(--abj-accent-shade) !important;
+  --color-message-reaction-own: color-mix(in srgb, var(--abj-accent) 28%, #FFFFFF) !important;
+  --color-message-reaction-hover-own: color-mix(in srgb, var(--abj-accent) 36%, #FFFFFF) !important;
+  --color-voice-transcribe-button-own: color-mix(in srgb, var(--abj-accent) 30%, #FFFFFF) !important;
+
+  &.theme-dark {
+    --color-background-own: color-mix(in srgb, var(--abj-accent) 75%, #212121) !important;
+    --color-background-own-apple: color-mix(in srgb, var(--abj-accent) 75%, #212121) !important;
+    --color-background-own-selected: color-mix(in srgb, var(--abj-accent) 60%, #212121) !important;
+    --color-accent-own: #FFFFFF !important;
+    --color-message-meta-own: rgba(255, 255, 255, 0.53) !important;
+    --color-own-links: #FFFFFF !important;
+    --color-code-own: #FFFFFF !important;
+    --color-message-reaction-own: color-mix(in srgb, var(--abj-accent) 60%, #000000) !important;
+    --color-message-reaction-hover-own: color-mix(in srgb, var(--abj-accent) 50%, #000000) !important;
+    --color-voice-transcribe-button-own: color-mix(in srgb, var(--abj-accent) 60%, #000000) !important;
   }
 }

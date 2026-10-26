@@ -3,7 +3,9 @@ import type { BackdropKind, CustomizationSettings } from './settings';
 
 import { requestMutation } from '../lib/fasterdom/fasterdom';
 import { CUSTOMIZATION_IDB_STORE } from '../util/browser/idb';
-import { ELECTRON_BRIDGE, TITLE_BAR_HEIGHT } from './electronBridge';
+import buildClassName from '../util/buildClassName';
+import { ELECTRON_BRIDGE, IS_TRANSPARENT_WINDOW, TITLE_BAR_HEIGHT } from './electronBridge';
+import { buildGradientBackground, shadeColor, toRgbChannels } from './palette';
 import { resolveFont } from './presets';
 import {
   DEFAULT_BUBBLE_RADIUS, DEFAULT_CUSTOMIZATION, getCustomization, subscribeToCustomization,
@@ -15,6 +17,12 @@ export const BACKDROP_VIDEO_KEY = 'backdrop-video';
 
 const AURORA_BLOB_COUNT = 4;
 const GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2';
+const WINDOW_CONTROL_ICON_ATTRS = 'width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor"';
+const WINDOW_CONTROL_ICONS = {
+  minimize: `<svg ${WINDOW_CONTROL_ICON_ATTRS}><path d="M0 5h10"/></svg>`,
+  maximize: `<svg ${WINDOW_CONTROL_ICON_ATTRS}><rect x="0.5" y="0.5" width="9" height="9"/></svg>`,
+  close: `<svg ${WINDOW_CONTROL_ICON_ATTRS}><path d="M0 0l10 10M10 0L0 10"/></svg>`,
+};
 
 let canUseBackgroundMaterial = false;
 let backdropElement: HTMLDivElement | undefined;
@@ -31,6 +39,11 @@ export function initCustomization() {
     if (TITLE_BAR_HEIGHT) {
       root.classList.add('has-custom-title-bar');
       root.style.setProperty('--abj-title-bar-height', `${TITLE_BAR_HEIGHT}px`);
+    }
+
+    if (IS_TRANSPARENT_WINDOW) {
+      root.classList.add('is-transparent-window');
+      renderWindowControls(ELECTRON_BRIDGE);
     }
 
     syncNativeTheme(ELECTRON_BRIDGE);
@@ -64,6 +77,7 @@ function applyCustomization(settings: CustomizationSettings) {
   const root = document.documentElement;
 
   requestMutation(() => {
+    applyPalette(root, settings);
     root.classList.toggle('abj-bubble-radius', settings.bubbleRadius !== DEFAULT_BUBBLE_RADIUS);
     root.classList.toggle('abj-no-bubble-tails', !settings.hasBubbleTails);
     root.classList.toggle('abj-font', Boolean(font));
@@ -90,8 +104,10 @@ function applyCustomization(settings: CustomizationSettings) {
     root.style.setProperty('--abj-glass-saturation', `${settings.glassSaturation}%`);
     root.style.setProperty('--abj-backdrop-dim', String(settings.backdropDim / 100));
     root.style.setProperty('--abj-speed', String(settings.animationSpeed));
+    root.style.setProperty('--abj-grain', String(settings.grain / 100));
+    root.style.setProperty('--abj-transparent-tint', `${settings.transparentTint}%`);
 
-    updateBackdropElement(backdrop);
+    updateBackdropElement(backdrop, settings);
     updateCustomCss(settings.customCss);
   });
 
@@ -104,17 +120,45 @@ function applyCustomization(settings: CustomizationSettings) {
   ELECTRON_BRIDGE?.setBackgroundMaterial(backdrop === 'mica' || backdrop === 'acrylic' ? backdrop : 'none');
 }
 
-// Native materials need DWM support, so other platforms fall back to the animated aurora
+// Native materials need DWM support and a see-through backdrop needs a transparent window, so both fall back
 function resolveBackdrop(backdrop: BackdropKind): BackdropKind {
   if ((backdrop === 'mica' || backdrop === 'acrylic') && !canUseBackgroundMaterial) {
+    return 'aurora';
+  }
+
+  if (backdrop === 'transparent' && !IS_TRANSPARENT_WINDOW) {
     return 'aurora';
   }
 
   return backdrop;
 }
 
-function updateBackdropElement(backdrop: BackdropKind) {
-  const shouldRender = backdrop === 'aurora' || backdrop === 'video';
+function applyPalette(root: HTMLElement, settings: CustomizationSettings) {
+  const { accentColor, glassTint } = settings;
+
+  root.classList.toggle('abj-accent', Boolean(accentColor));
+  root.classList.toggle('abj-own-bubble-tint', Boolean(accentColor && settings.isOwnBubbleTinted));
+  if (accentColor) {
+    const shade = shadeColor(accentColor);
+    root.style.setProperty('--abj-accent', accentColor);
+    root.style.setProperty('--abj-accent-shade', shade);
+    root.style.setProperty('--abj-accent-shade-rgb', toRgbChannels(shade));
+  } else {
+    root.style.removeProperty('--abj-accent');
+    root.style.removeProperty('--abj-accent-shade');
+    root.style.removeProperty('--abj-accent-shade-rgb');
+  }
+
+  // Set inline, the custom tint overrides both theme defaults of `--abj-glass-tint`
+  if (glassTint) {
+    root.style.setProperty('--abj-glass-tint', glassTint);
+  } else {
+    root.style.removeProperty('--abj-glass-tint');
+  }
+}
+
+function updateBackdropElement(backdrop: BackdropKind, settings: CustomizationSettings) {
+  const shouldRender = backdrop === 'aurora' || backdrop === 'gradient' || backdrop === 'video';
   if (!shouldRender) {
     backdropElement?.remove();
     backdropElement = undefined;
@@ -130,20 +174,25 @@ function updateBackdropElement(backdrop: BackdropKind) {
     document.documentElement.prepend(backdropElement);
   }
 
-  const kindClassName = `abj-backdrop-${backdrop}`;
+  const isMesh = backdrop === 'aurora' || (backdrop === 'gradient' && settings.gradientKind === 'mesh');
+  updateGradientStyle(backdropElement, backdrop, settings);
+  backdropElement.classList.toggle('abj-backdrop-static', backdrop === 'gradient' && !settings.isGradientAnimated);
+
+  const kindClassName = `abj-backdrop-${isMesh ? 'mesh' : backdrop}`;
   if (backdropElement.classList.contains(kindClassName)) return;
 
-  backdropElement.className = `abj-backdrop ${kindClassName}`;
+  const isStatic = backdropElement.classList.contains('abj-backdrop-static');
+  backdropElement.className = buildClassName('abj-backdrop', kindClassName, isStatic && 'abj-backdrop-static');
   backdropElement.replaceChildren();
   videoElement = undefined;
 
-  if (backdrop === 'aurora') {
+  if (isMesh) {
     for (let i = 0; i < AURORA_BLOB_COUNT; i++) {
       const blob = document.createElement('div');
       blob.className = 'abj-aurora-blob';
       backdropElement.append(blob);
     }
-  } else {
+  } else if (backdrop === 'video') {
     videoElement = document.createElement('video');
     videoElement.className = 'abj-backdrop-video';
     videoElement.muted = true;
@@ -153,9 +202,34 @@ function updateBackdropElement(backdrop: BackdropKind) {
     backdropElement.append(videoElement);
   }
 
+  const grain = document.createElement('div');
+  grain.className = 'abj-backdrop-grain';
   const dim = document.createElement('div');
   dim.className = 'abj-backdrop-dim';
-  backdropElement.append(dim);
+  backdropElement.append(grain, dim);
+}
+
+function updateGradientStyle(element: HTMLElement, backdrop: BackdropKind, settings: CustomizationSettings) {
+  const isGradient = backdrop === 'gradient';
+  const { gradientColors } = settings;
+
+  // Mesh gradients reuse the aurora blobs, so custom colors replace the palette variables
+  for (let i = 0; i < AURORA_BLOB_COUNT; i++) {
+    const property = `--abj-aurora-${i + 1}`;
+    if (isGradient) {
+      element.style.setProperty(property, gradientColors[i % gradientColors.length]);
+    } else {
+      element.style.removeProperty(property);
+    }
+  }
+
+  if (isGradient) {
+    element.style.setProperty('--abj-aurora-base', gradientColors[0]);
+    element.style.setProperty('--abj-gradient', buildGradientBackground(settings));
+  } else {
+    element.style.removeProperty('--abj-aurora-base');
+    element.style.removeProperty('--abj-gradient');
+  }
 }
 
 async function updateBackdropVideo(settings: CustomizationSettings) {
@@ -224,6 +298,30 @@ function updateCustomCss(css: string) {
   customStyleElement.textContent = css;
   // Keeping the element last lets user rules win over app styles of equal specificity
   document.body.append(customStyleElement);
+}
+
+// A frameless transparent window has no native buttons, so they are drawn in the custom title bar
+function renderWindowControls(bridge: ElectronBridge) {
+  const controls = document.createElement('div');
+  controls.className = 'abj-window-controls';
+
+  const buttons: [string, string, () => void][] = [
+    ['minimize', WINDOW_CONTROL_ICONS.minimize, bridge.minimizeWindow],
+    ['maximize', WINDOW_CONTROL_ICONS.maximize, bridge.toggleMaximizeWindow],
+    ['close', WINDOW_CONTROL_ICONS.close, bridge.closeWindow],
+  ];
+
+  buttons.forEach(([name, icon, handler]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `abj-window-control abj-window-control-${name}`;
+    button.innerHTML = icon;
+    button.addEventListener('click', () => handler());
+    controls.append(button);
+  });
+
+  // Outside `body`, which is offset below the title bar
+  document.documentElement.append(controls);
 }
 
 function syncNativeTheme(bridge: ElectronBridge) {
