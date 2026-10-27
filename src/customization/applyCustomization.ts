@@ -39,6 +39,7 @@ export function initCustomization() {
     if (TITLE_BAR_HEIGHT) {
       root.classList.add('has-custom-title-bar');
       root.style.setProperty('--abj-title-bar-height', `${TITLE_BAR_HEIGHT}px`);
+      keepRootUnscrolled();
     }
 
     if (IS_TRANSPARENT_WINDOW) {
@@ -298,6 +299,20 @@ function updateCustomCss(css: string) {
   customStyleElement.textContent = css;
   // Keeping the element last lets user rules win over app styles of equal specificity
   document.body.append(customStyleElement);
+}
+
+// A safety net for engines without `overflow: clip`: the root snaps back whenever something scrolls it
+function keepRootUnscrolled() {
+  const reset = () => {
+    [document.documentElement, document.body].forEach((element) => {
+      if (element.scrollTop || element.scrollLeft) {
+        element.scrollTop = 0;
+        element.scrollLeft = 0;
+      }
+    });
+  };
+  window.addEventListener('scroll', reset, { passive: true });
+  document.body.addEventListener('scroll', reset, { passive: true });
 }
 
 // A frameless transparent window has no native buttons, so they are drawn in the custom title bar

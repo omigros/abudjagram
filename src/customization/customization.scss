@@ -331,8 +331,13 @@ html.has-custom-title-bar {
   // The official Telegram Web measures the whole window, so the page height excludes the title bar here too
   --vh: calc((100vh - var(--abj-title-bar-height)) / 100) !important;
 
+  // `clip` instead of `hidden` also stops script scrolling (e.g. `focus()` or `scrollIntoView()` in a chat),
+  // which would slide `body` over the draggable title bar
+  overflow: clip !important;
+
   box-sizing: border-box;
   padding-top: var(--abj-title-bar-height);
+
   background-color: var(--abj-title-bar-background) !important;
 
   -webkit-app-region: drag;
@@ -357,6 +362,7 @@ html.has-custom-title-bar {
 
   body {
     transform: translateZ(0);
+    overflow: clip !important;
     height: 100%;
 
     -webkit-app-region: no-drag;

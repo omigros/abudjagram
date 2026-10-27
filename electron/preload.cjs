@@ -9,6 +9,12 @@ const APP_MODE_ARG_PREFIX = '--abj-app-mode=';
 const titleBarArg = process.argv.find((arg) => arg.startsWith(TITLE_BAR_ARG_PREFIX));
 const appModeArg = process.argv.find((arg) => arg.startsWith(APP_MODE_ARG_PREFIX));
 
+// In web mode the main process injects the customization layer once the page's DOM exists. Asking from here is
+// reliable: the preload runs for every load, including reloads Telegram Web triggers itself.
+if (appModeArg && appModeArg.endsWith('web')) {
+  window.addEventListener('DOMContentLoaded', () => ipcRenderer.send('app:request-customization'));
+}
+
 // Exposed under a fork-specific name: upstream treats `window.electron` as a legacy Tauri build
 contextBridge.exposeInMainWorld('abudjagram', {
   titleBarHeight: titleBarArg ? Number(titleBarArg.slice(TITLE_BAR_ARG_PREFIX.length)) : 0,

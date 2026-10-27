@@ -66,6 +66,7 @@ let badgeCount = 0;
 // Transparent windows can't be maximized natively on Windows, so the bounds before maximizing are kept here
 let boundsBeforeMaximize;
 const TRANSPARENT_WINDOWS = new WeakSet();
+let isWebModeWindow = false;
 
 app.setName(APP_NAME);
 if (process.platform === 'win32') app.setAppUserModelId('com.abudjagram.desktop');
@@ -203,11 +204,8 @@ function createMainWindow() {
 
   if (appMode === 'web') {
     // Every load of Telegram Web gets the customization layer again
-    mainWindow.webContents.on('dom-ready', () => injectCustomization(mainWindow.webContents));
-    // A second chance in case the first run raced the page start; the bundle runs only once per page
-    mainWindow.webContents.on('did-finish-load', () => {
-      mainWindow.webContents.executeJavaScript(readInjectFile('abudjagram-inject.js')).catch(logInjectError);
-    });
+    // The preload asks for it on every load of the page (see `app:request-customization`)
+    isWebModeWindow = true;
   }
 
   mainWindow.loadURL(DEV_URL || (appMode === 'web' ? WEB_URL : APP_URL));
@@ -370,6 +368,10 @@ function registerIpcHandlers() {
 
   ipcMain.on('window:set-transparent', (e, isEnabled) => {
     writeWindowConfig({ ...readWindowConfig(), isTransparent: Boolean(isEnabled) });
+  });
+
+  ipcMain.on('app:request-customization', (e) => {
+    if (isWebModeWindow && e.sender.getURL().startsWith(WEB_URL)) injectCustomization(e.sender);
   });
 
   ipcMain.on('app:set-mode', (e, mode) => {
