@@ -3412,6 +3412,7 @@ export interface LangPair {
   'AbjTransparentWindow': undefined;
   'AbjTransparentWindowInfo': undefined;
   'AbjRelaunch': undefined;
+  'AbjTrayIcon': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

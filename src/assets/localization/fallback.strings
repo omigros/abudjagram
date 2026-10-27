@@ -4530,3 +4530,4 @@
 "AbjTransparentWindow" = "Прозрачное окно";
 "AbjTransparentWindowInfo" = "Окно без рамки, сквозь фон виден рабочий стол";
 "AbjRelaunch" = "Перезапустить, чтобы применить";
+"AbjTrayIcon" = "Значок в трее";

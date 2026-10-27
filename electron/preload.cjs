@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('abudjagram', {
   setTheme: (theme) => ipcRenderer.send('window:set-theme', theme),
   setBadge: (count, imageDataUrl) => ipcRenderer.send('app:set-badge', count, imageDataUrl),
   getAutoLaunch: () => ipcRenderer.invoke('app:get-auto-launch'),
+  getTrayIcons: () => ipcRenderer.invoke('app:get-tray-icons'),
+  setTrayIcon: (id) => ipcRenderer.send('app:set-tray-icon', id),
   setAutoLaunch: (isEnabled) => ipcRenderer.send('app:set-auto-launch', isEnabled),
   setTransparentWindow: (isEnabled) => ipcRenderer.send('window:set-transparent', isEnabled),
   relaunch: () => ipcRenderer.send('app:relaunch'),

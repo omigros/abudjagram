@@ -14,6 +14,8 @@ const APP_HOST = 'abudjagram';
 const APP_URL = `${APP_SCHEME}://${APP_HOST}/`;
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 const ICON_PATH = path.join(__dirname, 'icon.png');
+const TRAY_ICONS_DIR = path.join(__dirname, 'tray-icons');
+const DEFAULT_TRAY_ICON = 'girl-A';
 const DEV_URL = process.env.ABUDJAGRAM_DEV_URL;
 const WEB_URL = 'https://web.telegram.org/a/';
 const WEB_HOST = 'web.telegram.org';
@@ -215,10 +217,38 @@ function showMainWindow() {
 }
 
 function createTray() {
-  tray = new Tray(nativeImage.createFromPath(ICON_PATH).resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE }));
+  tray = new Tray(buildTrayImage(getTrayIconId()));
   tray.setToolTip(APP_NAME);
   tray.on('click', showMainWindow);
   updateTrayMenu();
+}
+
+function getTrayIcons() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(TRAY_ICONS_DIR, 'index.json'), 'utf8'));
+  } catch (err) {
+    return [];
+  }
+}
+
+function getTrayIconId() {
+  const id = readWindowConfig().trayIcon;
+  return getTrayIcons().some((icon) => icon.id === id) ? id : DEFAULT_TRAY_ICON;
+}
+
+// The tray draws 16 px icons; a 32 px representation keeps them sharp on scaled displays
+function buildTrayImage(id) {
+  const source = nativeImage.createFromPath(path.join(TRAY_ICONS_DIR, `${id}.png`));
+  if (source.isEmpty()) {
+    return nativeImage.createFromPath(ICON_PATH).resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE });
+  }
+
+  const image = source.resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE, quality: 'best' });
+  image.addRepresentation({
+    scaleFactor: 2,
+    buffer: source.resize({ width: TRAY_ICON_SIZE * 2, height: TRAY_ICON_SIZE * 2, quality: 'best' }).toPNG(),
+  });
+  return image;
 }
 
 function updateTrayMenu() {
@@ -303,6 +333,23 @@ function registerIpcHandlers() {
     }
 
     updateTrayMenu();
+  });
+
+  ipcMain.handle('app:get-tray-icons', () => {
+    const selectedId = getTrayIconId();
+    return getTrayIcons().map(({ id, name }) => ({
+      id,
+      name,
+      isSelected: id === selectedId,
+      dataUrl: nativeImage.createFromPath(path.join(TRAY_ICONS_DIR, `${id}.png`)).toDataURL(),
+    }));
+  });
+
+  ipcMain.on('app:set-tray-icon', (e, id) => {
+    if (!getTrayIcons().some((icon) => icon.id === id)) return;
+
+    writeWindowConfig({ ...readWindowConfig(), trayIcon: id });
+    tray?.setImage(buildTrayImage(id));
   });
 
   ipcMain.handle('app:get-auto-launch', getIsAutoLaunchEnabled);

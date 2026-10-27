@@ -2,6 +2,13 @@ export type BackgroundMaterial = 'none' | 'mica' | 'acrylic';
 // `web` loads the official Telegram Web and injects the customization; `local` runs this fork's own build
 export type AppMode = 'web' | 'local';
 
+export type TrayIcon = {
+  id: string;
+  name: string;
+  dataUrl: string;
+  isSelected: boolean;
+};
+
 export type ElectronBridge = {
   titleBarHeight: number;
   isTransparentWindow: boolean;
@@ -12,6 +19,8 @@ export type ElectronBridge = {
   setTheme: (theme: 'dark' | 'light') => void;
   setBadge: (count: number, imageDataUrl?: string) => void;
   getAutoLaunch: () => Promise<boolean>;
+  getTrayIcons: () => Promise<TrayIcon[]>;
+  setTrayIcon: (id: string) => void;
   setAutoLaunch: (isEnabled: boolean) => void;
   setTransparentWindow: (isEnabled: boolean) => void;
   relaunch: () => void;

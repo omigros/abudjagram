@@ -1,4 +1,4 @@
-import type { AppMode, ElectronBridge } from '../electronBridge';
+import type { AppMode, ElectronBridge, TrayIcon } from '../electronBridge';
 import type {
   AnimationEasing, AuroraPalette, BackdropKind, CustomizationSettings, FontPreset, GradientKind, MessageAppearance,
 } from '../settings';
@@ -70,12 +70,17 @@ let wantedMode: AppMode;
 let isTransparentWindowWanted = IS_TRANSPARENT_WINDOW;
 let cssDraft: string | undefined;
 let isDraggingSlider = false;
+let trayIcons: TrayIcon[] | undefined;
 
 export function initPanel(electronBridge: ElectronBridge) {
   bridge = electronBridge;
   wantedMode = bridge.appMode;
   void bridge.getAutoLaunch().then((isEnabled) => {
     isAutoLaunchEnabled = isEnabled;
+    render();
+  });
+  void bridge.getTrayIcons().then((icons) => {
+    trayIcons = icons;
     render();
   });
 
@@ -330,6 +335,10 @@ function renderApp() {
     }),
   ];
 
+  if (trayIcons?.length) {
+    children.push(subheader('Значок в трее'), renderTrayIcons(trayIcons));
+  }
+
   if (bridge.titleBarHeight) {
     children.push(checkbox('Прозрачное окно', isTransparentWindowWanted, (isChecked) => {
       isTransparentWindowWanted = isChecked;
@@ -351,6 +360,25 @@ function renderApp() {
     children.push(action('Перезапустить, чтобы применить', () => bridge.relaunch()));
   }
   return section('Приложение', children);
+}
+
+function renderTrayIcons(icons: TrayIcon[]) {
+  const grid = el('div', 'abj-panel-tray-icons');
+  icons.forEach((icon) => {
+    const button = el('button', `abj-panel-tray-icon${icon.isSelected ? ' abj-panel-tray-icon-selected' : ''}`);
+    button.title = icon.name;
+    const image = el('img');
+    image.src = icon.dataUrl;
+    image.alt = icon.name;
+    button.append(image);
+    button.addEventListener('click', () => {
+      bridge.setTrayIcon(icon.id);
+      trayIcons = icons.map((item) => ({ ...item, isSelected: item.id === icon.id }));
+      render();
+    });
+    grid.append(button);
+  });
+  return grid;
 }
 
 function handleExport() {

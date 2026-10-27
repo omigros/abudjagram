@@ -4,11 +4,13 @@ import {
 } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
+import type { TrayIcon } from '../../../customization/electronBridge';
 import type { ThemePreset } from '../../../customization/presets';
 import type {
   AnimationEasing, AuroraPalette, BackdropKind, CustomizationSettings, FontPreset, GradientKind, MessageAppearance,
 } from '../../../customization/settings';
 
+import buildClassName from '../../../util/buildClassName';
 import download from '../../../util/download';
 import { openSystemFilesDialog } from '../../../util/systemFilesDialog';
 import { clearApiCredentials, getIsApiCredentialsBuiltIn } from '../../../customization/apiCredentials';
@@ -91,11 +93,13 @@ const SettingsCustomization = ({
   const [fontDraft, setFontDraft] = useState(settings.customFontFamily || '');
   const [isAutoLaunchEnabled, setIsAutoLaunchEnabled] = useState<boolean>();
   const [isTransparentWindowWanted, setIsTransparentWindowWanted] = useState(IS_TRANSPARENT_WINDOW);
+  const [trayIcons, setTrayIcons] = useState<TrayIcon[]>();
 
   useEffect(() => subscribeToCustomization(setSettings), []);
 
   useEffect(() => {
     void ELECTRON_BRIDGE?.getAutoLaunch().then(setIsAutoLaunchEnabled);
+    void ELECTRON_BRIDGE?.getTrayIcons().then(setTrayIcons);
   }, []);
 
   useHistoryBack({
@@ -206,6 +210,11 @@ const SettingsCustomization = ({
     setIsTransparentWindowWanted(isChecked);
     // The see-through backdrop is the point of the mode, so it is picked right away
     if (isChecked) updateCustomization({ backdrop: 'transparent' });
+  });
+
+  const handleTrayIconSelect = useLastCallback((id: string) => {
+    ELECTRON_BRIDGE?.setTrayIcon(id);
+    setTrayIcons(trayIcons?.map((icon) => ({ ...icon, isSelected: icon.id === id })));
   });
 
   const handleRelaunch = useLastCallback(() => {
@@ -638,6 +647,24 @@ const SettingsCustomization = ({
                 disabled={isAutoLaunchEnabled === undefined}
                 onCheck={handleAutoLaunchChange}
               />
+            )}
+            {Boolean(trayIcons?.length) && (
+              <>
+                <div className={styles.subheader}>{lang('AbjTrayIcon')}</div>
+                <div className={styles.trayIcons}>
+                  {trayIcons.map((icon) => (
+                    <button
+                      key={icon.id}
+                      type="button"
+                      title={icon.name}
+                      className={buildClassName(styles.trayIcon, icon.isSelected && styles.trayIconSelected)}
+                      onClick={() => handleTrayIconSelect(icon.id)}
+                    >
+                      <img src={icon.dataUrl} alt={icon.name} />
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
             {CAN_USE_TRANSPARENT_WINDOW && (
               <Checkbox
