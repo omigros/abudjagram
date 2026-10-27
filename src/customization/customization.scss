@@ -334,43 +334,42 @@ html.has-custom-title-bar {
   // `clip` instead of `hidden` also stops script scrolling (e.g. `focus()` or `scrollIntoView()` in a chat),
   // which would slide `body` over the draggable title bar
   overflow: clip !important;
-
   box-sizing: border-box;
   padding-top: var(--abj-title-bar-height);
-
   background-color: var(--abj-title-bar-background) !important;
-
-  -webkit-app-region: drag;
-
-  &::before {
-    pointer-events: none;
-    content: "Abudjagram";
-
-    position: fixed;
-    z-index: 1;
-    top: 0;
-    left: 0;
-
-    padding-inline: 1rem;
-
-    font-size: 0.75rem;
-    font-weight: var(--font-weight-medium);
-    line-height: var(--abj-title-bar-height);
-    color: var(--color-text-secondary);
-    letter-spacing: 0.02em;
-  }
 
   body {
     transform: translateZ(0);
     overflow: clip !important;
     height: 100%;
-
-    -webkit-app-region: no-drag;
   }
 }
 
+// The draggable strip is its own element placed after `body`. Electron applies drag and no-drag regions in
+// document order, so nothing inside the page (even message boxes scrolled out of view) can cover it, while the
+// window controls and the panel button placed after it stay clickable.
+.abj-title-bar {
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  right: 0;
+  left: 0;
+
+  height: var(--abj-title-bar-height);
+  padding-inline: 1rem;
+
+  font-family: var(--font-family);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  line-height: var(--abj-title-bar-height);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.02em;
+
+  -webkit-app-region: drag;
+}
+
 // Briefly toggled by the desktop app so the window picks up the draggable title bar again
-html.has-custom-title-bar.abj-drag-refresh {
+html.abj-drag-refresh .abj-title-bar {
   -webkit-app-region: no-drag;
 }
 

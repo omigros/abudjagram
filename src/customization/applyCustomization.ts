@@ -39,6 +39,7 @@ export function initCustomization() {
     if (TITLE_BAR_HEIGHT) {
       root.classList.add('has-custom-title-bar');
       root.style.setProperty('--abj-title-bar-height', `${TITLE_BAR_HEIGHT}px`);
+      renderTitleBar();
       keepRootUnscrolled();
     }
 
@@ -299,6 +300,15 @@ function updateCustomCss(css: string) {
   customStyleElement.textContent = css;
   // Keeping the element last lets user rules win over app styles of equal specificity
   document.body.append(customStyleElement);
+}
+
+// Goes right after `body`, so its drag region comes after the page's and before the window controls' (see the
+// `.abj-title-bar` styles)
+function renderTitleBar() {
+  const titleBar = document.createElement('div');
+  titleBar.className = 'abj-title-bar';
+  titleBar.textContent = 'Abudjagram';
+  document.body.after(titleBar);
 }
 
 // A safety net for engines without `overflow: clip`: the root snaps back whenever something scrolls it
