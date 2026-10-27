@@ -94,12 +94,14 @@ const SettingsCustomization = ({
   const [isAutoLaunchEnabled, setIsAutoLaunchEnabled] = useState<boolean>();
   const [isTransparentWindowWanted, setIsTransparentWindowWanted] = useState(IS_TRANSPARENT_WINDOW);
   const [trayIcons, setTrayIcons] = useState<TrayIcon[]>();
+  const [appIcons, setAppIcons] = useState<TrayIcon[]>();
 
   useEffect(() => subscribeToCustomization(setSettings), []);
 
   useEffect(() => {
     void ELECTRON_BRIDGE?.getAutoLaunch().then(setIsAutoLaunchEnabled);
     void ELECTRON_BRIDGE?.getTrayIcons().then(setTrayIcons);
+    void ELECTRON_BRIDGE?.getAppIcons().then(setAppIcons);
   }, []);
 
   useHistoryBack({
@@ -216,6 +218,29 @@ const SettingsCustomization = ({
     ELECTRON_BRIDGE?.setTrayIcon(id);
     setTrayIcons(trayIcons?.map((icon) => ({ ...icon, isSelected: icon.id === id })));
   });
+
+  const handleAppIconSelect = useLastCallback((id: string) => {
+    ELECTRON_BRIDGE?.setAppIcon(id);
+    setAppIcons(appIcons?.map((icon) => ({ ...icon, isSelected: icon.id === id })));
+  });
+
+  function renderIconGrid(icons: TrayIcon[], onSelect: (id: string) => void) {
+    return (
+      <div className={styles.trayIcons}>
+        {icons.map((icon) => (
+          <button
+            key={icon.id}
+            type="button"
+            title={icon.name}
+            className={buildClassName(styles.trayIcon, icon.isSelected && styles.trayIconSelected)}
+            onClick={() => onSelect(icon.id)}
+          >
+            <img src={icon.dataUrl} alt={icon.name} />
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   const handleRelaunch = useLastCallback(() => {
     ELECTRON_BRIDGE?.relaunch();
@@ -648,22 +673,16 @@ const SettingsCustomization = ({
                 onCheck={handleAutoLaunchChange}
               />
             )}
+            {Boolean(appIcons?.length) && (
+              <>
+                <div className={styles.subheader}>{lang('AbjAppIcon')}</div>
+                {renderIconGrid(appIcons, handleAppIconSelect)}
+              </>
+            )}
             {Boolean(trayIcons?.length) && (
               <>
                 <div className={styles.subheader}>{lang('AbjTrayIcon')}</div>
-                <div className={styles.trayIcons}>
-                  {trayIcons.map((icon) => (
-                    <button
-                      key={icon.id}
-                      type="button"
-                      title={icon.name}
-                      className={buildClassName(styles.trayIcon, icon.isSelected && styles.trayIconSelected)}
-                      onClick={() => handleTrayIconSelect(icon.id)}
-                    >
-                      <img src={icon.dataUrl} alt={icon.name} />
-                    </button>
-                  ))}
-                </div>
+                {renderIconGrid(trayIcons, handleTrayIconSelect)}
               </>
             )}
             {CAN_USE_TRANSPARENT_WINDOW && (

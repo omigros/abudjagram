@@ -16,6 +16,10 @@ const DIST_DIR = path.join(__dirname, '..', 'dist');
 const ICON_PATH = path.join(__dirname, 'icon.png');
 const TRAY_ICONS_DIR = path.join(__dirname, 'tray-icons');
 const DEFAULT_TRAY_ICON = 'girl-A';
+const APP_ICONS_DIR = path.join(__dirname, 'app-icons');
+// The icon built into the executable; choosing it puts shortcuts back on the executable's own icon
+const DEFAULT_APP_ICON = 'girl-A';
+const SHORTCUT_UPDATE_DELAY_MS = 3000;
 const DEV_URL = process.env.ABUDJAGRAM_DEV_URL;
 const WEB_URL = 'https://web.telegram.org/a/';
 const WEB_HOST = 'web.telegram.org';
@@ -90,6 +94,10 @@ if (!app.requestSingleInstanceLock()) {
     registerIpcHandlers();
     createMainWindow();
     createTray();
+    // The installer recreates shortcuts with the built-in icon, so a custom choice is applied again on start
+    if (getAppIconId() !== DEFAULT_APP_ICON) {
+      setTimeout(() => updateShortcutIcons(getAppIconId()), SHORTCUT_UPDATE_DELAY_MS);
+    }
 
     app.on('activate', showMainWindow);
   });
@@ -118,7 +126,7 @@ function createMainWindow() {
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     title: APP_NAME,
-    icon: ICON_PATH,
+    icon: getWindowIcon(getAppIconId()),
     show: false,
     autoHideMenuBar: true,
     ...(isTransparent ? {
@@ -224,10 +232,75 @@ function createTray() {
 }
 
 function getTrayIcons() {
+  return getIconList(TRAY_ICONS_DIR);
+}
+
+function getIconList(dir) {
   try {
-    return JSON.parse(fs.readFileSync(path.join(TRAY_ICONS_DIR, 'index.json'), 'utf8'));
+    return JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8'));
   } catch (err) {
     return [];
+  }
+}
+
+function getAppIconId() {
+  const id = readWindowConfig().appIcon;
+  return getIconList(APP_ICONS_DIR).some((icon) => icon.id === id) ? id : DEFAULT_APP_ICON;
+}
+
+function getWindowIcon(id) {
+  const image = nativeImage.createFromPath(path.join(APP_ICONS_DIR, `${id}.png`));
+  return image.isEmpty() ? ICON_PATH : image;
+}
+
+// Shortcuts show the icon they point at. Windows can't read icons from inside the app archive, so the chosen
+// one is copied to the data folder under its own name (a fresh path also skips the shell's icon cache).
+function updateShortcutIcons(id) {
+  if (process.platform !== 'win32' || !app.isPackaged) return;
+
+  let icon = process.execPath;
+  if (id !== DEFAULT_APP_ICON) {
+    icon = path.join(app.getPath('userData'), `app-icon-${id}.ico`);
+    try {
+      fs.copyFileSync(path.join(APP_ICONS_DIR, `${id}.ico`), icon);
+    } catch (err) {
+      return;
+    }
+  }
+
+  const appData = app.getPath('appData');
+  const shortcutDirs = [
+    app.getPath('desktop'),
+    path.join(appData, 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+    path.join(appData, 'Microsoft', 'Internet Explorer', 'Quick Launch', 'User Pinned', 'TaskBar'),
+  ];
+  shortcutDirs.forEach((dir) => {
+    let files = [];
+    try {
+      files = fs.readdirSync(dir).filter((file) => file.toLowerCase().endsWith('.lnk'));
+    } catch (err) {
+      return;
+    }
+
+    files.forEach((file) => {
+      const shortcutPath = path.join(dir, file);
+      try {
+        const { target } = shell.readShortcutLink(shortcutPath);
+        if (path.resolve(target).toLowerCase() !== process.execPath.toLowerCase()) return;
+        shell.writeShortcutLink(shortcutPath, 'update', { icon, iconIndex: 0 });
+      } catch (err) {
+        // Shortcuts that can't be read belong to other programs or are broken; they are left alone
+      }
+    });
+  });
+
+  // Icons of earlier choices are no longer used by any shortcut
+  try {
+    fs.readdirSync(app.getPath('userData'))
+      .filter((file) => /^app-icon-.+\.ico$/.test(file) && file !== path.basename(icon))
+      .forEach((file) => fs.rmSync(path.join(app.getPath('userData'), file), { force: true }));
+  } catch (err) {
+    // Leftover icon files are harmless
   }
 }
 
@@ -343,6 +416,24 @@ function registerIpcHandlers() {
       isSelected: id === selectedId,
       dataUrl: nativeImage.createFromPath(path.join(TRAY_ICONS_DIR, `${id}.png`)).toDataURL(),
     }));
+  });
+
+  ipcMain.handle('app:get-app-icons', () => {
+    const selectedId = getAppIconId();
+    return getIconList(APP_ICONS_DIR).map(({ id, name }) => ({
+      id,
+      name,
+      isSelected: id === selectedId,
+      dataUrl: nativeImage.createFromPath(path.join(TRAY_ICONS_DIR, `${id}.png`)).toDataURL(),
+    }));
+  });
+
+  ipcMain.on('app:set-app-icon', (e, id) => {
+    if (!getIconList(APP_ICONS_DIR).some((icon) => icon.id === id)) return;
+
+    writeWindowConfig({ ...readWindowConfig(), appIcon: id });
+    mainWindow?.setIcon(getWindowIcon(id));
+    updateShortcutIcons(id);
   });
 
   ipcMain.on('app:set-tray-icon', (e, id) => {

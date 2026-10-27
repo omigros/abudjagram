@@ -71,6 +71,7 @@ let isTransparentWindowWanted = IS_TRANSPARENT_WINDOW;
 let cssDraft: string | undefined;
 let isDraggingSlider = false;
 let trayIcons: TrayIcon[] | undefined;
+let appIcons: TrayIcon[] | undefined;
 
 export function initPanel(electronBridge: ElectronBridge) {
   bridge = electronBridge;
@@ -81,6 +82,10 @@ export function initPanel(electronBridge: ElectronBridge) {
   });
   void bridge.getTrayIcons().then((icons) => {
     trayIcons = icons;
+    render();
+  });
+  void bridge.getAppIcons().then((icons) => {
+    appIcons = icons;
     render();
   });
 
@@ -335,8 +340,17 @@ function renderApp() {
     }),
   ];
 
+  if (appIcons?.length) {
+    children.push(subheader('Значок приложения (окно, рабочий стол, «Пуск»)'), renderIconGrid(appIcons, (id) => {
+      bridge.setAppIcon(id);
+      appIcons = selectIcon(appIcons!, id);
+    }));
+  }
   if (trayIcons?.length) {
-    children.push(subheader('Значок в трее'), renderTrayIcons(trayIcons));
+    children.push(subheader('Значок в трее'), renderIconGrid(trayIcons, (id) => {
+      bridge.setTrayIcon(id);
+      trayIcons = selectIcon(trayIcons!, id);
+    }));
   }
 
   if (bridge.titleBarHeight) {
@@ -362,7 +376,7 @@ function renderApp() {
   return section('Приложение', children);
 }
 
-function renderTrayIcons(icons: TrayIcon[]) {
+function renderIconGrid(icons: TrayIcon[], onSelect: (id: string) => void) {
   const grid = el('div', 'abj-panel-tray-icons');
   icons.forEach((icon) => {
     const button = el('button', `abj-panel-tray-icon${icon.isSelected ? ' abj-panel-tray-icon-selected' : ''}`);
@@ -372,13 +386,16 @@ function renderTrayIcons(icons: TrayIcon[]) {
     image.alt = icon.name;
     button.append(image);
     button.addEventListener('click', () => {
-      bridge.setTrayIcon(icon.id);
-      trayIcons = icons.map((item) => ({ ...item, isSelected: item.id === icon.id }));
+      onSelect(icon.id);
       render();
     });
     grid.append(button);
   });
   return grid;
+}
+
+function selectIcon(icons: TrayIcon[], id: string) {
+  return icons.map((icon) => ({ ...icon, isSelected: icon.id === id }));
 }
 
 function handleExport() {
