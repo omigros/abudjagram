@@ -363,6 +363,11 @@ html.has-custom-title-bar {
   }
 }
 
+// Briefly toggled by the desktop app so the window picks up the draggable title bar again
+html.has-custom-title-bar.abj-drag-refresh {
+  -webkit-app-region: no-drag;
+}
+
 html.has-custom-title-bar.abj-glass {
   --abj-title-bar-background: var(--abj-glass-surface);
 }

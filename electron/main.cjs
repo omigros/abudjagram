@@ -38,6 +38,11 @@ const TRAY_ICON_SIZE = 16;
 const HIDDEN_LAUNCH_ARG = '--hidden';
 const TRANSPARENT_WINDOW_ARG = '--abj-transparent-window';
 const APP_MODE_ARG_PREFIX = '--abj-app-mode=';
+// After these, Chromium keeps stale draggable regions until the page layout changes
+const DRAG_REGION_RESET_EVENTS = ['leave-full-screen', 'leave-html-full-screen', 'unmaximize', 'restore'];
+const DRAG_REGION_RESET_DELAY_MS = 150;
+const DRAG_REGION_REFRESH_SCRIPT = "(() => { const root = document.documentElement; root.classList.add('abj-drag-refresh'); "
+  + "setTimeout(() => root.classList.remove('abj-drag-refresh'), 50); })()";
 const WINDOWS_11_FIRST_BUILD = 22000;
 const BACKGROUND_MATERIALS = new Set(['none', 'mica', 'acrylic', 'tabbed']);
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
@@ -133,13 +138,33 @@ function createMainWindow() {
     },
   });
 
-  if (isTransparent) TRANSPARENT_WINDOWS.add(mainWindow);
+  if (isTransparent) {
+    TRANSPARENT_WINDOWS.add(mainWindow);
+    // A native maximize (title bar double-click, Win+Up) leaves a transparent window stuck and immovable,
+    // so it is replaced with the same bounds-based maximize the window controls use
+    mainWindow.on('maximize', () => {
+      const normalBounds = mainWindow.getNormalBounds();
+      // Unmaximizing inside the event itself is ignored by Windows
+      setTimeout(() => {
+        mainWindow.unmaximize();
+        // A second double-click on an already maximized window restores it
+        if (boundsBeforeMaximize) {
+          toggleMaximize(mainWindow);
+        } else {
+          maximizeToWorkArea(mainWindow, normalBounds);
+        }
+      });
+    });
+  }
   if (windowState.isMaximized && !isTransparent) mainWindow.maximize();
 
   mainWindow.once('ready-to-show', () => {
     if (!isLaunchedHidden) mainWindow.show();
   });
   mainWindow.on('focus', () => mainWindow.flashFrame(false));
+  DRAG_REGION_RESET_EVENTS.forEach((eventName) => {
+    mainWindow.on(eventName, () => refreshDragRegions(mainWindow));
+  });
   // Closing the window keeps the app running in the tray, like other desktop messengers
   mainWindow.on('close', (e) => {
     writeWindowState(mainWindow);
@@ -295,6 +320,14 @@ function setIsAutoLaunchEnabled(isEnabled) {
   updateTrayMenu();
 }
 
+// Toggling the title bar's `app-region` makes the page report its draggable regions to the window again
+function refreshDragRegions(win) {
+  setTimeout(() => {
+    if (win.isDestroyed()) return;
+    win.webContents.executeJavaScript(DRAG_REGION_REFRESH_SCRIPT).catch(() => undefined);
+  }, DRAG_REGION_RESET_DELAY_MS);
+}
+
 function toggleMaximize(win) {
   if (!isTransparentWindow(win)) {
     if (win.isMaximized()) win.unmaximize(); else win.maximize();
@@ -307,8 +340,12 @@ function toggleMaximize(win) {
     return;
   }
 
-  boundsBeforeMaximize = win.getBounds();
-  win.setBounds(screen.getDisplayMatching(boundsBeforeMaximize).workArea);
+  maximizeToWorkArea(win, win.getBounds());
+}
+
+function maximizeToWorkArea(win, normalBounds) {
+  boundsBeforeMaximize = normalBounds;
+  win.setBounds(screen.getDisplayMatching(normalBounds).workArea);
 }
 
 function isTransparentWindow(win) {
