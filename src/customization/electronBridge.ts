@@ -1,8 +1,12 @@
 export type BackgroundMaterial = 'none' | 'mica' | 'acrylic';
+// `web` loads the official Telegram Web and injects the customization; `local` runs this fork's own build
+export type AppMode = 'web' | 'local';
 
 export type ElectronBridge = {
   titleBarHeight: number;
   isTransparentWindow: boolean;
+  appMode: AppMode;
+  setAppMode: (mode: AppMode) => void;
   getCapabilities: () => Promise<{ platform: string; canUseBackgroundMaterial: boolean }>;
   setBackgroundMaterial: (material: BackgroundMaterial) => void;
   setTheme: (theme: 'dark' | 'light') => void;

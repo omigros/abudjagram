@@ -328,6 +328,8 @@ html[data-abj-appearance="blur"] .MessageList .Message:not(.open) {
 
 html.has-custom-title-bar {
   --abj-title-bar-background: var(--color-background-secondary);
+  // The official Telegram Web measures the whole window, so the page height excludes the title bar here too
+  --vh: calc((100vh - var(--abj-title-bar-height)) / 100) !important;
 
   box-sizing: border-box;
   padding-top: var(--abj-title-bar-height);

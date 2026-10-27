@@ -4,6 +4,7 @@ import { memo, useState } from '../lib/teact/teact';
 import {
   getIsApiCredentialsRejected, saveApiCredentials, validateApiHash, validateApiId,
 } from './apiCredentials';
+import { ELECTRON_BRIDGE } from './electronBridge';
 
 import useLastCallback from '../hooks/useLastCallback';
 
@@ -29,6 +30,7 @@ const TEXT = {
   apiHashError: 'api_hash — это 32 символа: цифры и латинские буквы a–f',
   save: 'Сохранить и продолжить',
   rejected: 'Telegram не принял прошлые ключи. Проверьте api_id и api_hash на my.telegram.org.',
+  webMode: 'Войти без ключей через официальный Telegram Web',
 };
 
 const ApiSetupScreen = () => {
@@ -55,6 +57,11 @@ const ApiSetupScreen = () => {
 
     saveApiCredentials(apiId, apiHash);
     window.location.reload();
+  });
+
+  const handleSwitchToWebMode = useLastCallback(() => {
+    ELECTRON_BRIDGE!.setAppMode('web');
+    ELECTRON_BRIDGE!.relaunch();
   });
 
   return (
@@ -86,6 +93,9 @@ const ApiSetupScreen = () => {
           onChange={handleApiHashChange}
         />
         <Button type="submit" className={styles.submit}>{TEXT.save}</Button>
+        {ELECTRON_BRIDGE && (
+          <Button isText className={styles.submit} onClick={handleSwitchToWebMode}>{TEXT.webMode}</Button>
+        )}
       </form>
     </div>
   );

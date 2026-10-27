@@ -17,3 +17,4 @@ release/
 .npm-*.log
 abudjagram_git/
 dist/
+electron/inject/

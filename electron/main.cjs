@@ -15,6 +15,12 @@ const APP_URL = `${APP_SCHEME}://${APP_HOST}/`;
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 const ICON_PATH = path.join(__dirname, 'icon.png');
 const DEV_URL = process.env.ABUDJAGRAM_DEV_URL;
+const WEB_URL = 'https://web.telegram.org/a/';
+const WEB_HOST = 'web.telegram.org';
+const WEB_ENTRY_PATHS = new Set(['/a/', '/a/index.html']);
+const INJECT_DIR = path.join(__dirname, 'inject');
+// Directives relaxed in Telegram Web's CSP, so custom fonts, images and videos from the internet load
+const RELAXED_CSP_DIRECTIVES = ['style-src', 'font-src', 'img-src', 'media-src'];
 // A named profile gets its own data folder, so it runs alongside the default one (e.g. a second account)
 const PROFILE = process.env.ABUDJAGRAM_PROFILE;
 
@@ -31,6 +37,7 @@ const TITLE_BAR_HEIGHT = 32;
 const TRAY_ICON_SIZE = 16;
 const HIDDEN_LAUNCH_ARG = '--hidden';
 const TRANSPARENT_WINDOW_ARG = '--abj-transparent-window';
+const APP_MODE_ARG_PREFIX = '--abj-app-mode=';
 const WINDOWS_11_FIRST_BUILD = 22000;
 const BACKGROUND_MATERIALS = new Set(['none', 'mica', 'acrylic', 'tabbed']);
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
@@ -72,6 +79,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     protocol.handle(APP_SCHEME, handleAppRequest);
+    if (getAppMode() === 'web') protocol.handle('https', handleWebRequest);
     registerIpcHandlers();
     createMainWindow();
     createTray();
@@ -95,6 +103,8 @@ function createMainWindow() {
   const isTransparent = HAS_CUSTOM_TITLE_BAR && readWindowConfig().isTransparent;
   const additionalArguments = [`--abj-title-bar-height=${HAS_CUSTOM_TITLE_BAR ? TITLE_BAR_HEIGHT : 0}`];
   if (isTransparent) additionalArguments.push(TRANSPARENT_WINDOW_ARG);
+  const appMode = getAppMode();
+  additionalArguments.push(`${APP_MODE_ARG_PREFIX}${appMode}`);
 
   mainWindow = new BrowserWindow({
     ...windowState,
@@ -156,7 +166,16 @@ function createMainWindow() {
     openExternalUrl(url);
   });
 
-  mainWindow.loadURL(DEV_URL || APP_URL);
+  if (appMode === 'web') {
+    // Every load of Telegram Web gets the customization layer again
+    mainWindow.webContents.on('dom-ready', () => injectCustomization(mainWindow.webContents));
+    // A second chance in case the first run raced the page start; the bundle runs only once per page
+    mainWindow.webContents.on('did-finish-load', () => {
+      mainWindow.webContents.executeJavaScript(readInjectFile('abudjagram-inject.js')).catch(logInjectError);
+    });
+  }
+
+  mainWindow.loadURL(DEV_URL || (appMode === 'web' ? WEB_URL : APP_URL));
 }
 
 function showMainWindow() {
@@ -223,6 +242,11 @@ function registerIpcHandlers() {
 
   ipcMain.on('window:set-transparent', (e, isEnabled) => {
     writeWindowConfig({ ...readWindowConfig(), isTransparent: Boolean(isEnabled) });
+  });
+
+  ipcMain.on('app:set-mode', (e, mode) => {
+    if (mode !== 'web' && mode !== 'local') return;
+    writeWindowConfig({ ...readWindowConfig(), mode });
   });
 
   ipcMain.on('app:relaunch', () => {
@@ -315,6 +339,53 @@ function buildTitleBarOverlay() {
   };
 }
 
+// `web` runs the official Telegram Web with the injected customization and needs no API keys;
+// `local` runs this fork's own build, which asks for keys from my.telegram.org
+function getAppMode() {
+  if (DEV_URL) return 'local';
+  return readWindowConfig().mode === 'local' ? 'local' : 'web';
+}
+
+function injectCustomization(webContents) {
+  try {
+    const css = readInjectFile('abudjagram-inject.css');
+    const js = readInjectFile('abudjagram-inject.js');
+    webContents.insertCSS(css).catch(logInjectError);
+    webContents.executeJavaScript(js).catch(logInjectError);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to inject the customization layer', err);
+  }
+}
+
+function readInjectFile(name) {
+  return fs.readFileSync(path.join(INJECT_DIR, name), 'utf8');
+}
+
+function logInjectError(err) {
+  // eslint-disable-next-line no-console
+  console.error('Failed to inject the customization layer', err);
+}
+
+// Telegram Web sets its CSP in a meta tag, so the entry page is rewritten on the way in
+async function handleWebRequest(request) {
+  const url = new URL(request.url);
+  const response = await net.fetch(request, { bypassCustomProtocolHandlers: true });
+  if (url.host !== WEB_HOST || request.method !== 'GET' || !WEB_ENTRY_PATHS.has(url.pathname)) return response;
+
+  const html = await response.text();
+  const relaxedHtml = html.replace(/(<meta http-equiv="Content-Security-Policy" content=")([^"]*)(")/,
+    (match, start, policy, end) => `${start}${relaxCsp(policy)}${end}`);
+  return new Response(relaxedHtml, { status: response.status, headers: response.headers });
+}
+
+function relaxCsp(policy) {
+  return policy.split(';').map((directive) => {
+    const name = directive.trim().split(/\s+/)[0];
+    return RELAXED_CSP_DIRECTIVES.includes(name) ? `${directive} https:` : directive;
+  }).join(';');
+}
+
 function handleAppRequest(request) {
   const { pathname } = new URL(request.url);
   const relativePath = decodeURIComponent(pathname).replace(/^\/+/, '') || 'index.html';
@@ -330,7 +401,7 @@ function handleAppRequest(request) {
 }
 
 function isAppUrl(url) {
-  return url.startsWith(APP_URL) || Boolean(DEV_URL && url.startsWith(DEV_URL));
+  return url.startsWith(APP_URL) || url.startsWith(WEB_URL) || Boolean(DEV_URL && url.startsWith(DEV_URL));
 }
 
 function openExternalUrl(url) {
