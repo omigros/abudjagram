@@ -8,7 +8,7 @@
 
 Стекло, живые фоны, свои цвета и шрифты — поверх официального Telegram Web, без ключей и танцев с бубном.
 
-[**Скачать для Windows**](https://github.com/omigros/abudjagram/releases/latest) · [Риски](#риски-и-безопасность) · [Для разработчиков](docs/DEVELOPMENT.md)
+[**Скачать для Windows**](https://github.com/omigros/abudjagram/releases) · [Риски](#риски-и-безопасность) · [Для разработчиков](docs/DEVELOPMENT.md)
 
 ![Статус: ранняя версия](https://img.shields.io/badge/статус-ранняя%20версия-orange)
 ![Windows 10 и 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6)
@@ -45,7 +45,7 @@
 
 ## Как скачать и установить
 
-1. Откройте страницу [**последней версии**](https://github.com/omigros/abudjagram/releases/latest).
+1. Откройте страницу [**релизов**](https://github.com/omigros/abudjagram/releases) и выберите верхнюю версию.
 2. В разделе **Assets** скачайте файл **`Abudjagram-Setup-….exe`**.
 3. Запустите его. Windows может показать окно **«Windows защитила ваш компьютер»** — так бывает с программами без
    платной цифровой подписи. Нажмите **«Подробнее» → «Выполнить в любом случае»**.
