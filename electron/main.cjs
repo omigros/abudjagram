@@ -1,7 +1,7 @@
 'use strict';
 
 const {
-  app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, net, protocol, screen, shell, Tray,
+  app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, net, protocol, screen, session, shell, Tray,
 } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -69,6 +69,10 @@ const TRANSPARENT_WINDOWS = new WeakSet();
 let isWebModeWindow = false;
 
 app.setName(APP_NAME);
+// A separate audio process costs memory for the few sounds Telegram plays
+app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
+// GPU acceleration holds the most memory after the page itself; without it the CPU draws, which is slower
+if (readWindowConfig().isMemorySaver) app.disableHardwareAcceleration();
 if (process.platform === 'win32') app.setAppUserModelId('com.abudjagram.desktop');
 
 protocol.registerSchemesAsPrivileged([{
@@ -105,6 +109,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('before-quit', () => {
     isQuitting = true;
+    flushSessionData();
   });
 
   app.on('window-all-closed', () => {
@@ -173,6 +178,8 @@ function createMainWindow() {
     if (!isLaunchedHidden) mainWindow.show();
   });
   mainWindow.on('focus', () => mainWindow.flashFrame(false));
+  // Windows logs off or shuts down without a regular quit
+  mainWindow.on('session-end', flushSessionData);
   DRAG_REGION_RESET_EVENTS.forEach((eventName) => {
     mainWindow.on(eventName, () => refreshDragRegions(mainWindow));
   });
@@ -183,6 +190,7 @@ function createMainWindow() {
 
     e.preventDefault();
     mainWindow.hide();
+    flushSessionData();
   });
   mainWindow.on('closed', () => {
     mainWindow = undefined;
@@ -209,6 +217,11 @@ function createMainWindow() {
   }
 
   mainWindow.loadURL(DEV_URL || (appMode === 'web' ? WEB_URL : APP_URL));
+}
+
+function flushSessionData() {
+  // Chromium writes storage lazily; a forced end (shutdown, crash) could otherwise drop the Telegram session
+  session.defaultSession.flushStorageData();
 }
 
 function showMainWindow() {
@@ -372,6 +385,11 @@ function registerIpcHandlers() {
 
   ipcMain.on('app:request-customization', (e) => {
     if (isWebModeWindow && e.sender.getURL().startsWith(WEB_URL)) injectCustomization(e.sender);
+  });
+
+  ipcMain.handle('app:get-memory-saver', () => Boolean(readWindowConfig().isMemorySaver));
+  ipcMain.on('app:set-memory-saver', (e, isEnabled) => {
+    writeWindowConfig({ ...readWindowConfig(), isMemorySaver: Boolean(isEnabled) });
   });
 
   ipcMain.on('app:set-mode', (e, mode) => {

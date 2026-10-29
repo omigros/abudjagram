@@ -72,6 +72,8 @@ let cssDraft: string | undefined;
 let isDraggingSlider = false;
 let trayIcons: TrayIcon[] | undefined;
 let appIcons: TrayIcon[] | undefined;
+let isMemorySaverEnabled: boolean | undefined;
+let isMemorySaverWanted: boolean | undefined;
 
 export function initPanel(electronBridge: ElectronBridge) {
   bridge = electronBridge;
@@ -86,6 +88,11 @@ export function initPanel(electronBridge: ElectronBridge) {
   });
   void bridge.getAppIcons().then((icons) => {
     appIcons = icons;
+    render();
+  });
+  void bridge.getMemorySaver().then((isEnabled) => {
+    isMemorySaverEnabled = isEnabled;
+    isMemorySaverWanted = isEnabled;
     render();
   });
 
@@ -365,12 +372,22 @@ function renderApp() {
       }
     }));
   }
+  if (isMemorySaverWanted !== undefined) {
+    children.push(checkbox('Экономия памяти', isMemorySaverWanted, (isChecked) => {
+      isMemorySaverWanted = isChecked;
+      bridge.setMemorySaver(isChecked);
+      render();
+    }), el('div', 'abj-panel-hint abj-panel-note',
+      'Отключает видеоускорение: примерно на 130 МБ меньше памяти, но больше нагрузка на процессор, '
+      + 'особенно со стеклом и анимированным фоном'));
+  }
   children.push(checkbox('Запускать вместе с Windows', Boolean(isAutoLaunchEnabled), (isChecked) => {
     isAutoLaunchEnabled = isChecked;
     bridge.setAutoLaunch(isChecked);
   }, isAutoLaunchEnabled === undefined));
 
-  if (wantedMode !== bridge.appMode || isTransparentWindowWanted !== IS_TRANSPARENT_WINDOW) {
+  if (wantedMode !== bridge.appMode || isTransparentWindowWanted !== IS_TRANSPARENT_WINDOW
+    || isMemorySaverWanted !== isMemorySaverEnabled) {
     children.push(action('Перезапустить, чтобы применить', () => bridge.relaunch()));
   }
   return section('Приложение', children);

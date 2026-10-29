@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('abudjagram', {
   setAutoLaunch: (isEnabled) => ipcRenderer.send('app:set-auto-launch', isEnabled),
   setTransparentWindow: (isEnabled) => ipcRenderer.send('window:set-transparent', isEnabled),
   relaunch: () => ipcRenderer.send('app:relaunch'),
+  getMemorySaver: () => ipcRenderer.invoke('app:get-memory-saver'),
+  setMemorySaver: (isEnabled) => ipcRenderer.send('app:set-memory-saver', isEnabled),
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   toggleMaximizeWindow: () => ipcRenderer.send('window:toggle-maximize'),
   closeWindow: () => ipcRenderer.send('window:close'),

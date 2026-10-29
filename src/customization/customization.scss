@@ -14,6 +14,7 @@
   --abj-glass-shadow: 0 0.5rem 2rem rgba(31, 38, 135, 0.12);
   --abj-glass-surface: color-mix(in srgb, var(--abj-glass-tint) var(--abj-glass-opacity), transparent);
   --abj-glass-opacity-strong: min(100%, calc(var(--abj-glass-opacity) + 25%));
+  --abj-glass-opacity-dense: min(100%, calc(var(--abj-glass-opacity) + 35%));
   --abj-glass-surface-strong: color-mix(in srgb, var(--abj-glass-tint) var(--abj-glass-opacity-strong), transparent);
   --abj-glass-filter: blur(var(--abj-glass-blur)) saturate(var(--abj-glass-saturation));
 
@@ -220,7 +221,6 @@ html.abj-glass {
   #LeftColumn,
   #RightColumn,
   .MiddleHeader,
-  .Composer .composer-wrapper,
   .Composer .main-button {
     background: var(--abj-glass-surface) !important;
     backdrop-filter: var(--abj-glass-filter);
@@ -246,7 +246,6 @@ html.abj-glass-highlight {
   #LeftColumn,
   #RightColumn,
   .MiddleHeader,
-  .Composer .composer-wrapper,
   .Menu .bubble,
   .modal-dialog {
     outline: 1px solid var(--abj-glass-highlight);
@@ -509,4 +508,65 @@ html.abj-own-bubble-tint {
     --color-message-reaction-hover-own: color-mix(in srgb, var(--abj-accent) 50%, #000000) !important;
     --color-voice-transcribe-button-own: color-mix(in srgb, var(--abj-accent) 60%, #000000) !important;
   }
+}
+
+// Composer: a soft pill without the bubble tail, dim while idle and brighter and more saturated while typing
+
+.Composer .composer-wrapper {
+  border-radius: 1.5rem !important;
+
+  opacity: 0.7;
+  outline: none !important;
+  box-shadow: none !important;
+
+  transition:
+    opacity 200ms ease,
+    background-color 200ms ease,
+    box-shadow 200ms ease,
+    backdrop-filter 200ms ease;
+
+  &::before {
+    display: none;
+  }
+}
+
+html.abj-glass .Composer .composer-wrapper {
+  background: color-mix(in srgb, var(--abj-glass-tint) calc(var(--abj-glass-opacity) * 0.45), transparent) !important;
+  backdrop-filter: blur(var(--abj-glass-blur));
+}
+
+.Composer:is(:focus-within, :has(#editable-message-text:not(:empty))) .composer-wrapper {
+  opacity: 1;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 40%, transparent),
+    0 0.5rem 1.5rem rgba(0, 0, 0, 0.25) !important;
+}
+
+html.abj-glass .Composer:is(:focus-within, :has(#editable-message-text:not(:empty))) .composer-wrapper {
+  background: var(--abj-glass-surface-strong) !important;
+  backdrop-filter: var(--abj-glass-filter) brightness(1.08);
+}
+
+// The forum panel slides over the chat list; with the see-through glass it would show the list and folder tabs
+// beneath it, so it gets a dense glass of its own. Its class is hashed, so it is found by its header.
+html.abj-glass #LeftColumn :has(> #TopicListHeader) {
+  background: color-mix(in srgb, var(--abj-glass-tint) var(--abj-glass-opacity-dense), transparent) !important;
+  backdrop-filter: var(--abj-glass-filter);
+}
+
+// With the forum panel open, the chat list shrinks to a 4.75rem strip of avatars; they sit 0.375rem right of its
+// middle by default
+.chat-list.forum-panel-open .Chat .Avatar {
+  translate: -0.375rem 0;
+}
+
+.chat-list .Chat .Avatar {
+  transition: transform var(--layer-transition), translate var(--layer-transition);
+}
+
+// The placeholder of a round video is a canvas sized in pixels inside a box sized in rem, so with the interface
+// scaled down it overflowed the circle and looked cut off until the video loaded
+.RoundVideo .thumbnail {
+  width: 100% !important;
+  height: 100% !important;
 }
