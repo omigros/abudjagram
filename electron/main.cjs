@@ -8,6 +8,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const { resolveUserDataPath } = require('./userData.cjs');
+
 const APP_NAME = 'Abudjagram';
 const APP_SCHEME = 'app';
 const APP_HOST = 'abudjagram';
@@ -30,9 +32,9 @@ const RELAXED_CSP_DIRECTIVES = ['style-src', 'font-src', 'img-src', 'media-src']
 // A named profile gets its own data folder, so it runs alongside the default one (e.g. a second account)
 const PROFILE = process.env.ABUDJAGRAM_PROFILE;
 
-if (PROFILE) {
-  app.setPath('userData', path.join(app.getPath('appData'), `${APP_NAME}-${PROFILE.replace(/[^\w-]/g, '')}`));
-}
+app.setPath('userData', resolveUserDataPath({
+  appData: app.getPath('appData'), isPackaged: app.isPackaged, profile: PROFILE,
+}));
 
 const WINDOW_STATE_FILE = path.join(app.getPath('userData'), 'window-state.json');
 const WINDOW_CONFIG_FILE = path.join(app.getPath('userData'), 'window-config.json');

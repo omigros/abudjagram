@@ -1,58 +1,96 @@
-# Telegram Web A
+<div align="center">
 
-This project won the first prize 🥇 at [Telegram Lightweight Client Contest](https://contest.com/javascript-web-3) and now is an official Telegram client available to anyone at [web.telegram.org/a](https://web.telegram.org/a).
+<img src="docs/images/logo.png" width="128" alt="Abudjagram">
 
-According to the original contest rules, it has nearly zero dependencies and is fully based on its own [Teact](https://github.com/Ajaxy/teact) framework (which re-implements React paradigm). It also uses a custom version of [GramJS](https://github.com/gram-js/gramjs) as an MTProto implementation.
+# Abudjagram
 
-The project incorporates lots of technologically advanced features, modern Web APIs and techniques: WebSockets, Web Workers and WebAssembly, multi-level caching and PWA, voice recording and media streaming, cryptography and raw binary data operations, optimistic and progressive interfaces, complicated CSS/Canvas/SVG animations, reactive data streams, and so much more.
+**Telegram для Windows, который выглядит так, как хотите вы.**
 
-Feel free to explore, provide feedback and contribute.
+Стекло, живые фоны, свои цвета и шрифты — поверх официального Telegram Web, без ключей и танцев с бубном.
 
-## Local setup
+[**Скачать для Windows**](https://github.com/omigros/abudjagram/releases/latest) · [Риски](#риски-и-безопасность) · [Для разработчиков](docs/DEVELOPMENT.md)
 
-```sh
-mv .env.example .env
+![Статус: ранняя версия](https://img.shields.io/badge/статус-ранняя%20версия-orange)
+![Windows 10 и 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6)
+![Лицензия GPL-3.0](https://img.shields.io/badge/лицензия-GPL--3.0-blue)
 
-npm i
-```
+</div>
 
-Obtain API ID and API hash on [my.telegram.org](https://my.telegram.org) and populate the `.env` file.
+> [!WARNING]
+> **Abudjagram на ранней стадии разработки.** Он работает, но в нём возможны ошибки, а интерфейс и настройки
+> ещё будут меняться. Это неофициальный клиент, он не связан с Telegram. Прочитайте раздел
+> [«Риски и безопасность»](#риски-и-безопасность) перед установкой.
 
-## Dev mode
+## Как выглядит
 
-```sh
-npm run dev
-```
+<p align="center">
+  <img src="docs/images/screenshot-panel.png" width="49%" alt="Панель кастомизации с готовыми темами">
+  <img src="docs/images/screenshot-neon.png" width="49%" alt="Тема «Неон» с анимированным фоном">
+</p>
 
-### Invoking API from console
+## Что умеет
 
-Start your dev server and locate GramJS worker in the console context.
+- **Стекло** — полупрозрачные панели с размытием: сила размытия, плотность, насыщенность, светлая кромка, свой оттенок.
+- **Живые фоны** — анимированная «Аврора» в четырёх палитрах, свой градиент из 2–4 цветов с зернистостью,
+  видео (файл или ссылка), системные Mica и Acrylic на Windows 11.
+- **Прозрачное окно** — сквозь фон приложения виден рабочий стол.
+- **Цвета** — акцентный цвет для кнопок, ссылок и ваших сообщений.
+- **Сообщения и шрифты** — скругление пузырей, хвостики, шрифты Inter, Manrope, Nunito, JetBrains Mono или любой
+  установленный, масштаб интерфейса.
+- **Анимации** — скорость, характер движения, эффекты появления сообщений.
+- **Свой CSS** — для тех, кому мало настроек.
+- **Готовые темы** в один клик, экспорт и импорт настроек в файл.
+- **Как настоящее приложение** — свой заголовок окна, трей, счётчик непрочитанных на значке, автозапуск, выбор значка
+  приложения и значка в трее.
 
-All constructors and functions available in global `GramJs` variable.
+## Как скачать и установить
 
-Run `npm run gramjs:tl full` to get access to all available Telegram methods.
+1. Откройте страницу [**последней версии**](https://github.com/omigros/abudjagram/releases/latest).
+2. В разделе **Assets** скачайте файл **`Abudjagram-Setup-….exe`**.
+3. Запустите его. Windows может показать окно **«Windows защитила ваш компьютер»** — так бывает с программами без
+   платной цифровой подписи. Нажмите **«Подробнее» → «Выполнить в любом случае»**.
+4. Выберите папку и завершите установку. Ярлык появится на рабочем столе и в меню «Пуск».
+5. Откройте Abudjagram и войдите в Telegram как обычно: по QR-коду
+   (Telegram на телефоне → **Настройки → Устройства → Подключить устройство**) или по номеру телефона.
+6. Нажмите на **палитру** в заголовке окна (или **Ctrl+Shift+K**) — и настраивайте.
 
-Example usage:
-``` javascript
-await invoke(new GramJs.help.GetAppConfig())
-```
+**Обновление.** Автообновления пока нет. Скачайте новую версию и установите поверх старой — вход и настройки
+сохранятся.
 
-### Dependencies
-* [GramJS](https://github.com/gram-js/gramjs) ([MIT License](https://github.com/gram-js/gramjs/blob/master/LICENSE))
-* [fflate](https://github.com/101arrowz/fflate) ([MIT License](https://github.com/101arrowz/fflate/blob/master/LICENSE))
-* [cryptography](https://github.com/spalt08/cryptography) ([Apache License 2.0](https://github.com/spalt08/cryptography/blob/master/LICENSE))
-* [emoji-data](https://github.com/iamcal/emoji-data) ([MIT License](https://github.com/iamcal/emoji-data/blob/master/LICENSE))
-* [twemoji-parser](https://github.com/jdecked/twemoji-parser) ([MIT License](https://github.com/jdecked/twemoji-parser/blob/master/LICENSE.md))
-* [tlottie](https://github.com/dkaraush/tlottie) ([MIT License](https://github.com/dkaraush/tlottie/))
-* [opus-recorder](https://github.com/chris-rudmin/opus-recorder) ([Various Licenses](https://github.com/chris-rudmin/opus-recorder/blob/master/LICENSE.md))
-* [qr-code-styling](https://github.com/kozakdenys/qr-code-styling) ([MIT License](https://github.com/kozakdenys/qr-code-styling/blob/master/LICENSE))
-* [music-metadata](https://github.com/Borewit/music-metadata) ([MIT License](https://github.com/Borewit/music-metadata/blob/master/LICENSE.txt))
-* [Tiptap](https://github.com/ueberdosis/tiptap) ([MIT License](https://github.com/ueberdosis/tiptap/blob/main/LICENSE.md))
-* [marked](https://github.com/markedjs/marked) ([MIT License](https://github.com/markedjs/marked/blob/master/LICENSE.md))
-* [lowlight](https://github.com/wooorm/lowlight) ([MIT License](https://github.com/wooorm/lowlight/blob/main/license))
-* [idb-keyval](https://github.com/jakearchibald/idb-keyval) ([Apache License 2.0](https://github.com/jakearchibald/idb-keyval/blob/main/LICENCE))
-* [fasttextweb](https://github.com/karmdesai/fastTextWeb)
-* fastblur
+**Удаление.** «Параметры Windows» → «Приложения» → Abudjagram → «Удалить».
 
-## Bug reports and Suggestions
-If you find an issue with this app, let Telegram know using the [Suggestions Platform](https://bugs.telegram.org/c/4002).
+**Требования:** Windows 10 или 11, 64-бит, около 500 МБ места.
+
+## Риски и безопасность
+
+Пожалуйста, прочитайте — здесь честно о том, чем Abudjagram отличается от официального приложения.
+
+- **Неофициальный клиент.** Abudjagram сделан энтузиастами и не связан с Telegram FZ-LLC. Telegram не проверял
+  его и не отвечает за его работу.
+- **Ваш аккаунт.** По умолчанию Abudjagram загружает **официальный** Telegram Web (web.telegram.org) и только меняет
+  его внешний вид. Ваши сообщения и вход идут напрямую в Telegram, как в браузере. Нам не известны случаи
+  ограничения аккаунтов из-за такого использования, но гарантировать этого мы не можем: Telegram сам решает, как относиться
+  к неофициальным клиентам.
+- **Режим «Своя сборка»** работает через собственные ключи API с my.telegram.org. Он для опытных пользователей:
+  использование ключей регулируется [условиями Telegram API](https://core.telegram.org/api/terms). Не используйте
+  чужие ключи.
+- **Данные.** Abudjagram ничего не собирает и никуда не отправляет. Сессия и настройки хранятся только на вашем
+  компьютере, в папке `%APPDATA%\Abudjagram`.
+- **Установщик без подписи.** Поэтому Windows и некоторые антивирусы предупреждают о нём. Скачивайте Abudjagram
+  только со [страницы релизов](https://github.com/omigros/abudjagram/releases) этого репозитория: там установщик
+  собирается автоматически из открытого кода.
+- **Свой CSS.** Вставляйте только CSS, которому доверяете: чужой код может испортить вид или подгружать что-то
+  из интернета.
+- **Без гарантий.** Это ранняя версия, она распространяется «как есть», без каких-либо гарантий (см. лицензию).
+  Возможны ошибки, сбои и изменения настроек между версиями.
+
+Нашли ошибку или есть идея? Создайте [issue](https://github.com/omigros/abudjagram/issues).
+
+## Лицензия и благодарности
+
+Abudjagram основан на [Telegram Web A](https://github.com/Ajaxy/telegram-tt) — открытом веб-клиенте Telegram
+(© Alexander Zinchuk и участники проекта) — и, как и он, распространяется по лицензии
+[GPL-3.0](LICENSE). Исходный код Abudjagram открыт в этом репозитории. Описание оригинального проекта —
+в [docs/TELEGRAM_WEB_A.md](docs/TELEGRAM_WEB_A.md).
+
+«Telegram» — товарный знак его владельцев; в этом проекте он упоминается только для описания совместимости.

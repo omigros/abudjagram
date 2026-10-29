@@ -1,4 +1,4 @@
-# Abudjagram
+# Abudjagram — для разработчиков
 
 Десктопный форк [Telegram Web A](https://github.com/Ajaxy/telegram-tt) на Electron с расширенной кастомизацией внешнего вида.
 Лицензия — GPL-3.0, как у оригинала: при распространении сборок исходный код форка должен быть открыт.
@@ -63,3 +63,22 @@
 | `src/components/left/settings/SettingsCustomization.tsx` | Экран настроек |
 
 Изменения в коде оригинала минимальны (пункт меню, роутинг экрана, CSP, строки локализации), чтобы было проще подтягивать обновления из upstream.
+
+## Папки данных
+
+| Запуск | Папка |
+| --- | --- |
+| Установленное приложение | `%APPDATA%\Abudjagram` (ранние сборки хранили данные в `%APPDATA%\telegram-t` — папка переезжает автоматически) |
+| Разработка (`npm run electron:dev`, `npx electron .`) | `%APPDATA%\Abudjagram-dev` |
+| `ABUDJAGRAM_PROFILE=<имя>` | `%APPDATA%\Abudjagram-<имя>` |
+
+## Выпуск версии
+
+1. Поднимите версию в `package.json` → `build.extraMetadata.version` (версия самого Telegram Web A в поле `version` не трогается — от неё зависят миграции его кэша).
+2. При необходимости обновите текст `.github/release-notes.md`.
+3. Отправьте метку версии:
+   ```
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+4. GitHub Actions (`.github/workflows/release.yml`) соберёт установщик на Windows и опубликует его на странице Releases как предварительную версию.

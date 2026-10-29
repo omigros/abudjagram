@@ -194,6 +194,10 @@
     "electronLanguages": [
       "ru",
       "en-US"
-    ]
+    ],
+    "extraMetadata": {
+      "version": "0.1.0"
+    },
+    "artifactName": "Abudjagram-Setup-${version}.${ext}"
   }
 }
